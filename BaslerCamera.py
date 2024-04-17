@@ -17,6 +17,7 @@ def create_camera_with_ip_address(ip_address: str):  # -> SwigPyObject
     empty_camera_info = ptl.CreateDeviceInfo()
     # Set the IP address of the (empty) device object
     empty_camera_info.SetIpAddress(ip_address)
+    empty_camera_info.SetDestinationAddr(ip_address)
     # TODO: set other parameter?
     # Create the camera device object
     camera_device = factory.CreateDevice(empty_camera_info)
@@ -44,6 +45,7 @@ def create_camera(
         ip_address: str = None,
         serial_number: int = None
 ) -> pylon.InstantCamera:
+    set_env_variable("PYLON_CAMEMU", 0)  # FIXME: necessary?
     if ip_address:
         # Connect to the camera using IP address
         logging.info(f"Connect to the camera using IP address: {ip_address}")
@@ -62,6 +64,19 @@ def create_camera(
     return pylon.InstantCamera(device)
 
 
+def get_parameter(cam: pylon.InstantCamera) -> dict:
+    if not cam.IsOpen():
+        raise Exception("Open camera first.")
+
+    info = {
+        "Transmission Type": cam.StreamGrabber.TransmissionType.GetValue(),
+        "Destination Address": cam.StreamGrabber.DestinationAddr.GetValue(),
+        "Destination Port": cam.StreamGrabber.DestinationPort.GetValue(),
+        "Acquisition Mode": cam.AcquisitionMode.GetValue()
+        }
+    return info
+
+
 def set_camera_parameter(
         cam: pylon.InstantCamera,
         transmission_type: str = None,
@@ -69,7 +84,9 @@ def set_camera_parameter(
         destination_port: int = None,
         acquisition_mode: str = "SingleFrame"  # "Continuous"
 ) -> bool:
-    # Set parameters if provided
+    """Set parameters if provided"""
+    if not cam.IsOpen():
+        raise Exception("Open camera first.")
 
     # Transmission Type
     _transmission_type = cam.StreamGrabber.TransmissionType.GetValue()
@@ -107,15 +124,32 @@ def set_camera_parameter(
     return True
 
 
-@contextlib.contextmanager
-def open_camera(pypycam: pylon.InstantCamera) -> pylon.InstantCamera:
-    try:
-        pypycam.Open()
-        yield pypycam
-    except Exception as ex:
-        raise ex
-    finally:
-        pypycam.Close()
+def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout: int = None):
+    t = []
+    t.append(("start", default_timer()))
+
+    _exposure_time = cam.ExposureTimeAbs.GetValue()
+    if exposure_time_microseconds and (exposure_time_microseconds != _exposure_time):
+        cam.ExposureTimeAbs.SetValue(exposure_time_microseconds)
+    t.append(("set exposure time", default_timer()))  # TIMING
+
+    # Wait for a grab result
+    t.append(("print info", default_timer()))  # TIMING
+    grab_result = cam.GrabOne(timeout)
+    t.append(("grab image", default_timer()))  # TIMING
+
+    if grab_result.GrabSucceeded():
+        # Convert the grabbed image to PIL Image object
+        img = grab_result.GetArray()
+        t.append(("get array", default_timer()))  # TIMING
+        grab_result.Release()
+        t.append(("release", default_timer()))  # TIMING
+    else:
+        raise RuntimeError("Failed to grab an image")
+
+    diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
+    logging.debug(f"take_photo() execution timing: {diff} ms")
+    return img
 
 
 class BaslerCamera:
@@ -135,6 +169,7 @@ class BaslerCamera:
         self.destination_ip = destination_ip
         self.destination_port = destination_port
         self.camera = None
+        logging.debug(f"Init {self}")
 
     def __repr__(self):
         keys = [
@@ -152,8 +187,20 @@ class BaslerCamera:
     def connect(self) -> bool:
         # create camera
         self.camera = create_camera(self.ip_address, self.serial_number)
+        logging.debug(f"Camera info: {self.get_camera_info()}")
+
+        self.camera.Open()
+        self.set_parameter()
         logging.info(f"{self}: {self.get_camera_info()}")
         return True
+
+    def disconnect(self) -> bool:
+        if self.camera is not None:
+            self.camera.close()
+        return True
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
 
     def get_camera_info(self) -> dict:
         if self.camera:
@@ -169,58 +216,36 @@ class BaslerCamera:
 
     def set_parameter(self) -> bool:
 
-        with open_camera(self.camera) as cam:
-            return set_camera_parameter(
-                cam,
-                transmission_type=self.transmission_type,
-                destination_ip=self.destination_ip,
-                destination_port=self.destination_port
-            )
+        return set_camera_parameter(
+            self.camera,
+            transmission_type=self.transmission_type,
+            destination_ip=self.destination_ip,
+            destination_port=self.destination_port
+        )
 
     def take_photo(self, exposure_time_microseconds: int = None):
         # create camara object if necessary
         if self.camera is None:
             self.connect()
+            # raise RuntimeError("Camera is not connected. Call connect() method first.")
 
-        t = []
-        t.append(("start", default_timer()))  # TIMING
-        if self.camera is None:
-            raise RuntimeError("Camera is not connected. Call connect() method first.")
         if not self.camera.IsOpen():
             self.camera.Open()
-        t.append(("open camera", default_timer()))  # TIMING
 
-        _exposure_time = self.camera.ExposureTimeAbs.GetValue()
-        if exposure_time_microseconds and (exposure_time_microseconds != _exposure_time):
-            self.camera.ExposureTimeAbs.SetValue(exposure_time_microseconds)
-        t.append(("set exposure time", default_timer()))  # TIMING
-        
-        # Wait for a grab result
-        print(f"take_photo(): self.timeout={self.timeout}") 
-        t.append(("print info", default_timer()))  # TIMING
-        grab_result = self.camera.GrabOne(self.timeout)
-        t.append(("grab image", default_timer()))  # TIMING
-
-        if grab_result.GrabSucceeded():
-            # Convert the grabbed image to PIL Image object
-            img = grab_result.GetArray()
-            t.append(("get array", default_timer()))  # TIMING
-            grab_result.Release()
-            t.append(("release", default_timer()))  # TIMING
-        else:
-            raise RuntimeError("Failed to grab an image")
-
-        diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-        print(f"take_photo() execution timing: {diff} ms")
-        return img
+        return take_picture(self.camera, exposure_time_microseconds, self.timeout)
 
 
 # Example usage:
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+#        handlers=[logging.StreamHandler(sys.stdout)],
+    )
     # Create camera instance with IP address
     camera = BaslerCamera(
         ip_address="192.168.10.5",
-        timeout=500,
+        timeout=1000,
         transmission_type="Multicast",
         destination_ip="192.168.10.221"
     )
@@ -228,8 +253,4 @@ if __name__ == "__main__":
     # Connect to the camera
     camera.connect()
 
-    # Take a photo
-    n = 4
-    for i in range(n):
-    	photo = camera.take_photo(100)
-
+    photo = camera.take_photo(100)
