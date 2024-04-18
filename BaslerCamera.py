@@ -1,6 +1,6 @@
 from pypylon import pylon
 from timeit import default_timer
-import contextlib
+
 import logging
 
 from typing import Union
@@ -97,13 +97,13 @@ def set_camera_parameter(
         # Destination IP address
         _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
         if destination_ip and (destination_ip != _destination_ip):
-            print(f"Setting Destination Address to {destination_ip}")
+            logging.debug(f"Setting Destination Address to {destination_ip}")
             cam.StreamGrabber.DestinationAddr.SetValue(destination_ip)
 
         # Destination Port
         _destination_ip = cam.StreamGrabber.DestinationPort.GetValue()
         if destination_port and (destination_port != _destination_ip):
-            print(f"Setting Destination Port to {destination_port}")
+            logging.debug(f"Setting Destination Port to {destination_port}")
             cam.StreamGrabber.DestinationPort.SetValue(destination_port)
 
     # AcquisitionMode Mode
