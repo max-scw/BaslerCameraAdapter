@@ -7,9 +7,8 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from pathlib import Path
 from random import shuffle
 import io
-from imageio import v3 as iio
 from PIL import Image
-import cv2
+
 # versions / info
 import fastapi
 import sys
@@ -107,10 +106,10 @@ def take_photo(
     t.append(("start", default_timer()))
     image_array = cam.take_photo(exposure_time_microseconds)
     t.append(("take photo", default_timer()))
-    with io.BytesIO() as buf:
-        iio.imwrite(buf, image_array, plugin="pillow", format="bmp")
-        image_bytes = buf.getvalue()
-    t.append(("convert iio", default_timer()))  # FIXME: pick one
+    # with io.BytesIO() as buf:
+    #     iio.imwrite(buf, image_array, plugin="pillow", format="bmp")
+    #     image_bytes = buf.getvalue()
+    # t.append(("convert iio", default_timer()))  # FIXME: pick one
 
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
@@ -119,9 +118,9 @@ def take_photo(
         image_bytes = buf.getvalue()
     t.append(("convert PIL", default_timer()))  # FIXME: pick one
 
-    success, im = cv2.imencode('.bmp', image_array)
-    image_bytes = im.tobytes()
-    t.append(("convert cv2", default_timer()))  # FIXME: pick one
+    # success, im = cv2.imencode('.bmp', image_array)
+    # image_bytes = im.tobytes()
+    # t.append(("convert cv2", default_timer()))  # FIXME: pick one
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
     msg = f"take_photo({kwargs} took {diff} ms. take_photo({kwargs})"
