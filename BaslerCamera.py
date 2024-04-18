@@ -89,7 +89,7 @@ def set_camera_parameter(
     # Transmission Type
     _transmission_type = cam.StreamGrabber.TransmissionType.GetValue()
     if transmission_type and (transmission_type != _transmission_type):
-        logging.debug(f"Setting Transmission Type to {transmission_type}")
+        logging.debug(f"Setting Transmission Type to {transmission_type}.")
         cam.StreamGrabber.TransmissionType.SetValue(transmission_type)
 
     # parameter are only writable if transmission type is not unicast
@@ -97,19 +97,19 @@ def set_camera_parameter(
         # Destination IP address
         _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
         if destination_ip and (destination_ip != _destination_ip):
-            logging.debug(f"Setting Destination Address to {destination_ip}")
+            logging.debug(f"Setting Destination Address to {destination_ip}.")
             cam.StreamGrabber.DestinationAddr.SetValue(destination_ip)
 
         # Destination Port
         _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
         if destination_port and (destination_port != _destination_port):
-            logging.debug(f"Setting Destination Port to {destination_port}")
+            logging.debug(f"Setting Destination Port to {destination_port}.")
             cam.StreamGrabber.DestinationPort.SetValue(destination_port)
 
     # AcquisitionMode Mode
     _acquisition_mode = cam.AcquisitionMode.GetValue()
     if acquisition_mode and (transmission_type != _acquisition_mode):
-        logging.debug(f"Setting Acquisition Mode to {acquisition_mode}")
+        logging.debug(f"Setting Acquisition Mode to {acquisition_mode}.")
         cam.AcquisitionMode.SetValue(acquisition_mode)
 
     # Bandwidth Optimization through compression. NOT AVAILABLE FOR ALL MODELS
@@ -123,6 +123,11 @@ def set_camera_parameter(
 
 
 def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout: int = None):
+    _transmission_type = cam.StreamGrabber.TransmissionType.GetValue()
+    _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
+    _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
+    logging.debug(f"take_picture(): {_transmission_type}, {_destination_ip}, {_destination_port} | {cam.IsOpen()}")
+
     t = []
     t.append(("start", default_timer()))
 
