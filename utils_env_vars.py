@@ -62,7 +62,8 @@ def set_env_variable(key: str, val) -> bool:
 def cast_logging_level(var: str, default: int = logging.INFO) -> int:
     """Only casts logging levels"""
     # cast string if possible
-    var = cast(var)
+    if isinstance(var, str):
+        var = cast(var)
 
     options = {
         "debug": logging.DEBUG,
