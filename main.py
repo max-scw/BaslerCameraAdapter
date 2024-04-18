@@ -37,11 +37,15 @@ app = FastAPI()
 Instrumentator().instrument(app).expose(app)  # produces a False in the console every time a valid entrypoint is called
 
 # set logging level
-logging_level = cast_logging_level(get_env_variable("LOGGING_LEVEL", None))
-print(f"Logging level is set to {logging_level}")
+logging_level_env = get_env_variable("LOGGING_LEVEL", None)
+logging_level = cast_logging_level(logging_level_env)
+print(f"Logging level is set to {logging_level} (ogl: {logging_level_env})")
 logging.basicConfig(
     level=logging_level,
-    filename=Path(get_env_variable("LOGGING_LEVEL", "log")).with_suffix(".log")
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(Path(get_env_variable("LOGGING_LEVEL", "log")).with_suffix(".log")),
+        logging.StreamHandler(sys.stdout)],
 )
 
 
