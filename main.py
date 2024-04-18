@@ -104,18 +104,18 @@ def take_photo(
     with io.BytesIO() as buf:
         iio.imwrite(buf, image_array, plugin="pillow", format="bmp")
         image_bytes = buf.getvalue()
-    t.append(("convert iio", default_timer()))
+    t.append(("convert iio", default_timer()))  # FIXME: pick one
 
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
     with io.BytesIO() as buf:
         im.save(buf, format='bmp')
         image_bytes = buf.getvalue()
-    t.append(("convert PIL", default_timer()))
+    t.append(("convert PIL", default_timer()))  # FIXME: pick one
 
     success, im = cv2.imencode('.bmp', image_array)
     image_bytes = im.tobytes()
-    t.append(("convert cv2", default_timer()))
+    t.append(("convert cv2", default_timer()))  # FIXME: pick one
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
     msg = f"take_photo({kwargs} took {diff} ms. take_photo({kwargs})"
@@ -154,22 +154,24 @@ def return_test_image(
         destination_ip_address: str = None,
         destination_port: int = None,
 ):
-    # load file
+    # get path to image or folder / name pattern
     image_path = get_env_variable("TEST_IMAGE", None)
     logging.debug(f"Return test image: {image_path}")
+
     if image_path:
         image_path = Path(image_path)
         if image_path.is_dir():
             images_ = image_path.parent.glob("*")
         else:
-            images_ = image_path.parent.glob(image_path.name)
+            images_ = image_path.glob(image_path.name)
         images = list(images_)
-        logging.debug(f"Images: {', '.join([el.as_posix() for el in images])}")
+        logging.debug(f"List of images: {', '.join([el.as_posix() for el in images])}")
         # shuffle list
         shuffle(images)
         # return first image that exists
         for p2img in images:
             if p2img.is_file():
+                logging.debug(f"Return image: {p2img.as_posix()}")
                 return FileResponse(
                     p2img.as_posix(),
                     media_type=f"image/{p2img.suffix.strip('.')}"
