@@ -10,11 +10,16 @@ import io
 from imageio import v3 as iio
 from PIL import Image
 import cv2
+# versions / info
+import fastapi
+import sys
 
+# logging / timing
 from timeit import default_timer
+from datetime import datetime
 import logging
 
-
+# custom packages
 from BaslerCamera import BaslerCamera
 from utils_env_vars import get_env_variable
 
@@ -45,50 +50,12 @@ Instrumentator().instrument(app).expose(app)  # produces a False in the console 
 @app.get("/")
 async def home():
     return {
-        'Message': 'This is a minimal website & webservice to interact with a Basler camera.',
-        'Entrypoints':
-            [
-                {
-                    'Address': f'{ENTRYPOINT_CAMERA_INFO}',
-                    'Description':
-                        'returns the name (type), IP address and MAC address of the camera as JSON',
-                    'Variables (one required)': [
-                        'serial_number',
-                        'ip_address'
-                    ]
-                },
-                {
-                    'Address': f'{ENTRYPOINT_TAKE_PHOTO}',
-                    'Description':
-                        'Connects to a Basler camera via the CameraVision library pypylon and returns a photo.',
-                    'Variables (one required)': [
-                        'serial_number',
-                        'ip_address'
-                    ],
-                    'Variables (optional)': [
-                        'exposure_time_microseconds',
-                        'timeout',
-                        'transmission_type',
-                        'destination_ip_address',
-                        'destination_port'
-                    ]
-                },
-                # ---- TEST FUNCTIONS
-                {
-                    'Address': f'{ENTRYPOINT_TEST}',
-                    'Description': 'negates the input variable. To test a functioning server',
-                    'Variables (required)': ['boolean']
-                },
-                {
-                    'Address': f'{ENTRYPOINT_TEST_IMAGE}',
-                    'Description': 'returns a test image.'
-                }
-            ],
-            'Software': 'fastAPI',
-            'Author': 'max-scw',
-            "Project": "https://github.com/max-scw/BaslerCameraAdapter"
-            }
-
+        "Message": "This is a minimal website & webservice to interact with a Basler camera.",
+        "docs": "/docs (automatic docs with Swagger UI)",
+        "Software": f"fastAPI (Version {fastapi.__version__}); Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "Project": "https://github.com/max-scw/BaslerCameraAdapter",
+        "Startup date": datetime.now()
+    }
 
 # ----- Interact with the Basler camera
 # create global camera instance
