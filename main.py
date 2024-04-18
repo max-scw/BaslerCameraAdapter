@@ -61,6 +61,10 @@ def create_camera(**kwargs):
             or
             (isinstance(CAMERA, BaslerCamera) and any([val != getattr(CAMERA, ky) for ky, val in kwargs.items()]))
     ):
+        # disconnect camera if existing
+        if isinstance(CAMERA, BaslerCamera):
+            CAMERA.disconnect()
+
         # create new instance
         CAMERA = BaslerCamera(**kwargs)
         # Connect to the camera
@@ -93,26 +97,28 @@ def take_photo(
     # elements = {ky: val for ky, val in kwargs.items() if val}
     cam = create_camera(**kwargs)
 
-    t0 = default_timer()
+    t = []
+    t.append(("start", default_timer()))
     image_array = cam.take_photo(exposure_time_microseconds)
+    t.append(("take photo", default_timer()))
     with io.BytesIO() as buf:
         iio.imwrite(buf, image_array, plugin="pillow", format="bmp")
         image_bytes = buf.getvalue()
+    t.append(("convert iio", default_timer()))
 
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
     with io.BytesIO() as buf:
         im.save(buf, format='bmp')
         image_bytes = buf.getvalue()
+    t.append(("convert PIL", default_timer()))
 
     success, im = cv2.imencode('.bmp', image_array)
     image_bytes = im.tobytes()
+    t.append(("convert cv2", default_timer()))
 
-
-    # except ValueError as ve:
-    #     raise HTTPException(status_code=449, detail=ve.args)
-    dt = default_timer() - t0
-    msg = f"Taking a photo took {dt} seconds. take_photo({kwargs})"
+    diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
+    msg = f"take_photo({kwargs} took {diff} ms. take_photo({kwargs})"
     logging.debug(msg)
     print(msg)
 
