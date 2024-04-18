@@ -25,7 +25,7 @@ WORKDIR /home/app
 
 
 # Install requirements
-COPY BaslerAPI/requirements.txt requirements.txt
+COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt --no-cache-dir
 
 # Copy app into the container
