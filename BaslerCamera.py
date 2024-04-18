@@ -101,8 +101,8 @@ def set_camera_parameter(
             cam.StreamGrabber.DestinationAddr.SetValue(destination_ip)
 
         # Destination Port
-        _destination_ip = cam.StreamGrabber.DestinationPort.GetValue()
-        if destination_port and (destination_port != _destination_ip):
+        _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
+        if destination_port and (destination_port != _destination_port):
             logging.debug(f"Setting Destination Port to {destination_port}")
             cam.StreamGrabber.DestinationPort.SetValue(destination_port)
 
