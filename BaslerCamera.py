@@ -181,8 +181,8 @@ class BaslerCamera:
             "destination_port"
         ]
         params = {ky: getattr(self, ky) for ky in keys if getattr(self, ky)}
-
-        return f"BaslerCamera({', '.join([f'{ky}={vl}' for ky, vl in params.items()])})"
+        text_input_params = ", ".join([f"{ky}={vl}" for ky, vl in params.items()])
+        return f"BaslerCamera({text_input_params})"
 
     def connect(self) -> bool:
         # create camera
@@ -197,6 +197,7 @@ class BaslerCamera:
     def disconnect(self) -> bool:
         if self.camera is not None:
             self.camera.close()
+            logging.debug("Camera disconnected.")
         return True
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -215,7 +216,9 @@ class BaslerCamera:
         return info
 
     def set_parameter(self) -> bool:
-
+        logging.debug(f"Setting Parameter: transmission_type={self.transmission_type}, "
+                      f"destination_ip={self.destination_ip}, "
+                      f"destination_port={self.destination_port}")
         return set_camera_parameter(
             self.camera,
             transmission_type=self.transmission_type,
