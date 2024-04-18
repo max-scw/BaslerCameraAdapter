@@ -21,7 +21,7 @@ import logging
 
 # custom packages
 from BaslerCamera import BaslerCamera
-from utils_env_vars import get_env_variable
+from utils_env_vars import get_env_variable, cast_logging_level
 
 
 ENTRYPOINT_TEST = "/test"
@@ -36,6 +36,12 @@ app = FastAPI()
 
 # create endpoint for prometheus
 Instrumentator().instrument(app).expose(app)  # produces a False in the console every time a valid entrypoint is called
+
+# set logging level
+logging.basicConfig(
+    level=cast_logging_level(get_env_variable("LOGGING_LEVEL", None)),
+    filename=Path(get_env_variable("LOGGING_LEVEL", "log")).with_suffix(".log")
+)
 
 
 # ----- home

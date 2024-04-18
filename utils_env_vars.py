@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from ast import literal_eval
@@ -58,3 +59,27 @@ def set_env_variable(key: str, val) -> bool:
     return True
 
 
+def cast_logging_level(var: str, default: int = logging.INFO) -> int:
+    """Only casts logging levels"""
+    # cast string if possible
+    var = cast(var)
+
+    options = {
+        "debug": logging.DEBUG,
+        "info": logging.INFO,
+        "warning": logging.WARNING,
+        "warn": logging.WARN,
+        "error": logging.ERROR,
+        "critical": logging.CRITICAL,
+        "fatal": logging.FATAL
+    }
+    if isinstance(var, int):
+        if var not in options.values():
+            return default
+
+    elif isinstance(var, str):
+        for ky, val in options.items():
+            if var.lower() == ky:
+                return val
+    else:
+        return default
