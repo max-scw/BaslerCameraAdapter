@@ -156,9 +156,15 @@ def return_test_image(
 ):
     # load file
     image_path = get_env_variable("TEST_IMAGE", None)
+    logging.debug(f"Return test image: {image_path}")
     if image_path:
         image_path = Path(image_path)
-        images = list(image_path.parent.glob(image_path.name))
+        if image_path.is_dir():
+            images_ = image_path.parent.glob("*")
+        else:
+            images_ = image_path.parent.glob(image_path.name)
+        images = list(images_)
+        logging.debug(f"Images: {', '.join([el.as_posix() for el in images])}")
         # shuffle list
         shuffle(images)
         # return first image that exists
@@ -173,4 +179,6 @@ def return_test_image(
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
     uvicorn.run(app=app, port=5051)
