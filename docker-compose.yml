@@ -15,9 +15,9 @@ services:
       - TZ=Europe/Berlin
       # customize
       - LOGGING_LEVEL=DEBUG
-      - TEST_IMAGE_PATH=/home/app/testimages/*.bmp
-    volumes:
-      - ./testimages:/home/app/testimages
+#      - TEST_IMAGE_PATH=/home/app/testimages/*.bmp
+#    volumes:
+#      - ./testimages:/home/app/testimages
     ports:
       - 3956:3956
       - 46000:46000/udp  # set Streaming Port to fixed value with pylonViewer
