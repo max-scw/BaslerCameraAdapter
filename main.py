@@ -32,16 +32,8 @@ ENTRYPOINT_TAKE_PHOTO = ENTRYPOINT_BASLER + "/take-photo"
 ENTRYPOINT_CAMERA_INFO = ENTRYPOINT_BASLER + "/get-camera-info"
 
 
-PATH_TO_TEMPORARY_FILES = Path("tmp")
-MAX_NUM_TEMP_FILES = get_env_variable("MAX_NUM_TEMP_FILES", 10)
-
-if not PATH_TO_TEMPORARY_FILES.exists():
-    print(f"Creating folder {PATH_TO_TEMPORARY_FILES.as_posix()}.")
-    PATH_TO_TEMPORARY_FILES.mkdir()
-
 app = FastAPI()
-app.mount("/temporary", StaticFiles(directory=PATH_TO_TEMPORARY_FILES), name="static")
-PATH_TO_TEMPORARY_FILES.mkdir(exist_ok=True)
+
 # create endpoint for prometheus
 Instrumentator().instrument(app).expose(app)  # produces a False in the console every time a valid entrypoint is called
 
