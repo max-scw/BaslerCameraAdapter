@@ -37,11 +37,8 @@ app = FastAPI()
 Instrumentator().instrument(app).expose(app)  # produces a False in the console every time a valid entrypoint is called
 
 # set logging level
-logging_level_env = get_env_variable("LOGGING_LEVEL", None)
-logging_level = cast_logging_level(logging_level_env)
-print(f"Logging level is set to {logging_level} (ogl: {logging_level_env})")
 logging.basicConfig(
-    level=logging_level,
+    level=cast_logging_level(get_env_variable("LOGGING_LEVEL", None)),
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler(Path(get_env_variable("LOGGING_LEVEL", "log")).with_suffix(".log")),
@@ -164,7 +161,7 @@ def return_test_image(
     if image_path:
         image_path = Path(image_path)
         if image_path.is_dir():
-            images_ = image_path.parent.glob("*")
+            images_ = image_path.glob("*")
         else:
             images_ = image_path.glob(image_path.name)
         images = list(images_)
