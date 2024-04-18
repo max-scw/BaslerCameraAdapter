@@ -161,7 +161,7 @@ def return_test_image(
         destination_port: int = None,
 ):
     # get path to image or folder / name pattern
-    image_path = get_env_variable("TEST_IMAGE", None)
+    image_path = get_env_variable("TEST_IMAGE_PATH", None)
     logging.debug(f"Return test image: {image_path}")
 
     if image_path:
