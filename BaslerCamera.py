@@ -17,8 +17,6 @@ def create_camera_with_ip_address(ip_address: str):  # -> SwigPyObject
     empty_camera_info = ptl.CreateDeviceInfo()
     # Set the IP address of the (empty) device object
     empty_camera_info.SetIpAddress(ip_address)
-    empty_camera_info.SetDestinationAddr(ip_address)
-    # TODO: set other parameter?
     # Create the camera device object
     camera_device = factory.CreateDevice(empty_camera_info)
     return camera_device
@@ -196,7 +194,7 @@ class BaslerCamera:
 
     def disconnect(self) -> bool:
         if self.camera is not None:
-            self.camera.close()
+            self.camera.Close()
             logging.debug("Camera disconnected.")
         return True
 
@@ -256,4 +254,6 @@ if __name__ == "__main__":
     # Connect to the camera
     camera.connect()
 
-    photo = camera.take_photo(100)
+    for _ in range(10):
+        photo = camera.take_photo(100)
+    camera.disconnect()
