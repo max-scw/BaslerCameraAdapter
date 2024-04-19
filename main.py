@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
-from prometheus_fastapi_instrumentator import Instrumentator
+# from prometheus_fastapi_instrumentator import Instrumentator
 
 from pathlib import Path
 from random import shuffle
@@ -20,7 +20,11 @@ import logging
 
 # custom packages
 from BaslerCamera import BaslerCamera
-from utils_env_vars import get_env_variable, cast_logging_level
+from utils_env_vars import (
+    get_env_variable,
+    cast_logging_level,
+    set_env_variable
+)
 
 
 ENTRYPOINT_TEST = "/test"
@@ -31,18 +35,37 @@ ENTRYPOINT_TAKE_PHOTO = ENTRYPOINT_BASLER + "/take-photo"
 ENTRYPOINT_CAMERA_INFO = ENTRYPOINT_BASLER + "/get-camera-info"
 
 
-app = FastAPI()
+description = """
+This [*FastAPI*](https://fastapi.tiangolo.com/) server provides REST endpoints to connect to [*Basler*](https://www.baslerweb.com) cameras 📷 using the Python project [*pypylon*](https://pypi.org/project/pypylon/) which wraps the [*Pylon Camera Software Suite*](https://www2.baslerweb.com/en/downloads/software-downloads/) to python. Both, the *Pylon Camera Software Suite* and *pypylon* are officially maintained by *Basler*. 
+**This project is no official project of *Basler*.**
+"""
+
+app = FastAPI(
+    title="BaslerCameraAdapter",
+    description=description,
+    summary="Camera Adapter for Basler cameras",
+    # version="0.0.1",
+    contact={
+        "name": "max-scw",
+        "url": "https://github.com/max-scw/BaslerCameraAdapter",
+    },
+    license_info={
+        "name": "BSD 3-Clause License",
+        "url": "https://github.com/max-scw/BaslerCameraAdapter/blob/main/LICENSE",
+    }
+)
 
 # create endpoint for prometheus
-Instrumentator().instrument(app).expose(app)  # produces a False in the console every time a valid entrypoint is called
+# Instrumentator().instrument(app).expose(app)  # produces a False in the console every time a valid entrypoint is called
 
 # set logging level
 logging.basicConfig(
     level=cast_logging_level(get_env_variable("LOGGING_LEVEL", None)),
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(Path(get_env_variable("LOGGING_LEVEL", "log")).with_suffix(".log")),
-        logging.StreamHandler(sys.stdout)],
+        logging.FileHandler(Path(get_env_variable("LOGFILE", "log")).with_suffix(".log")),
+        logging.StreamHandler(sys.stdout)
+    ],
 )
 
 
@@ -144,16 +167,7 @@ def negate(boolean: bool):
 
 
 @app.get(ENTRYPOINT_TEST_IMAGE)
-def return_test_image(
-        exposure_time_microseconds: int = None,
-        serial_number: int = None,
-        ip_address: str = None,
-        emulate_camera: bool = False,
-        timeout: int = None,
-        transmission_type: str = None,
-        destination_ip_address: str = None,
-        destination_port: int = None,
-):
+def return_test_image():
     # get path to image or folder / name pattern
     image_path = get_env_variable("TEST_IMAGE_PATH", None)
     logging.debug(f"Return test image: {image_path}")
@@ -181,6 +195,7 @@ def return_test_image(
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    set_env_variable("LOGGING_LEVEL", logging.DEBUG)
+    set_env_variable("TEST_IMAGE_PATH", "test_images")
 
     uvicorn.run(app=app, port=5051)

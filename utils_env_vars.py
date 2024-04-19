@@ -66,13 +66,14 @@ def cast_logging_level(var: str, default: int = logging.INFO) -> int:
         var = cast(var)
 
     options = {
-        "debug": logging.DEBUG,
-        "info": logging.INFO,
-        "warning": logging.WARNING,
-        "warn": logging.WARN,
-        "error": logging.ERROR,
-        "critical": logging.CRITICAL,
-        "fatal": logging.FATAL
+        "debug": logging.DEBUG,  # 10
+        "info": logging.INFO,  # 20
+        "warning": logging.WARNING,  # 30
+        "warn": logging.WARN,  # 30
+        "error": logging.ERROR,  # 40
+        "critical": logging.CRITICAL,  # 50
+        "fatal": logging.FATAL,  # 50
+        "notset": logging.NOTSET  # 0
     }
     if isinstance(var, int):
         if var not in options.values():
