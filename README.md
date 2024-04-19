@@ -25,12 +25,15 @@ BaslerCameraAdapter
 
 ## Usage
 The default entrypoint (`/`) provides basic information but rather just assures that the server is up.
+
 ![BaslerCameraAdapter_Entrypoint1.jpg](docs%2FBaslerCameraAdapter_Entrypoint1.jpg)
 
 See docs (endpoint `/docs`) for details. This endpoint is the charm of [*FastAPI*](https://fastapi.tiangolo.com/). 
+
 ![BaslerCameraAdapter_docs.jpg](docs%2FBaslerCameraAdapter_docs.jpg)
 
 The documentation is automatically created with [Swagger](https://swagger.io/) and provides and overview of all available endpoints as well as the ability to try them out with a convenient interface.
+
 ![BaslerCameraAdapter_docs_take_photo.jpg](docs%2FBaslerCameraAdapter_docs_take_photo.jpg)
 
 
