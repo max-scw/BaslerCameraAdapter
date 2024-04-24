@@ -1,5 +1,6 @@
 from pypylon import pylon
 from timeit import default_timer
+from pathlib import Path
 
 import logging
 
@@ -43,7 +44,7 @@ def create_camera(
         ip_address: str = None,
         serial_number: int = None
 ) -> pylon.InstantCamera:
-    set_env_variable("PYLON_CAMEMU", 0)  # FIXME: necessary?
+
     if ip_address:
         # Connect to the camera using IP address
         logging.info(f"Connect to the camera using IP address: {ip_address}")
@@ -56,7 +57,7 @@ def create_camera(
         # device = pylon.InstantCamera()
     else:
         logging.info("Emulating a camera.")
-        set_env_variable("PYLON_CAMEMU", 1)
+        set_env_variable("PYLON_CAMEMU", 1)  # set how many cameras should be emulated
         device = pylon.TlFactory.GetInstance().CreateFirstDevice()
     # access / build the camera
     return pylon.InstantCamera(device)
@@ -239,6 +240,18 @@ class BaslerCamera:
             )
         else:
             logging.debug("Camera is emulated. No parameters set.")
+            return False
+
+    def set_test_picture(self, path_to_image: Union[Path, str] = None) -> bool:
+        if path_to_image and (Path(path_to_image).exists()):
+            self.camera.ImageFilename = Path(path_to_image).as_posix()
+            logging.debug(f"Set test image to {self.camera.ImageFilename}.")
+            # enable image file test pattern
+            self.camera.ImageFileMode = "On"
+            # disable test pattern [ image file is "real-image"]
+            self.camera.TestImageSelector = "Off"
+            return True
+        else:
             return False
 
     def take_photo(self, exposure_time_microseconds: int = None):

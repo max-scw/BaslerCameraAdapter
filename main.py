@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
-from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from pathlib import Path
 from random import shuffle
@@ -25,6 +24,8 @@ from utils_env_vars import (
     cast_logging_level,
     set_env_variable
 )
+
+from typing import Union
 
 
 ENTRYPOINT_TEST = "/test"
@@ -55,38 +56,6 @@ app = FastAPI(
     }
 )
 
-# create endpoint for prometheus
-instrumentator = Instrumentator(
-    should_group_status_codes=False,
-    should_ignore_untemplated=True,
-    # should_instrument_requests_inprogress=True,
-    excluded_handlers=["/test/*", "/metrics"],
-    # should_respect_env_var=True,
-    # env_var_name="ENABLE_METRICS",
-    # inprogress_name="inprogress",
-    # inprogress_labels=True,
-)
-# add metrics
-instrumentator.add(
-    metrics.request_size(
-        should_include_handler=True,
-        should_include_method=False,
-        should_include_status=True,
-        # metric_namespace="a",
-        # metric_subsystem="b",
-    )
-)
-instrumentator.add(
-    metrics.response_size(
-        should_include_handler=True,
-        should_include_method=False,
-        should_include_status=True,
-        # metric_namespace="namespace",
-        # metric_subsystem="subsystem",
-    )
-)
-# expose app
-instrumentator.instrument(app, metric_namespace="basler-camera-adapter").expose(app)
 
 # set logging level
 logging.basicConfig(
@@ -133,6 +102,29 @@ def create_camera(**kwargs):
     return CAMERA
 
 
+def get_test_image() -> Union[Path, None]:
+    # get path to image or folder / name pattern
+    image_path = get_env_variable("TEST_IMAGE_PATH", None)
+    logging.debug(f"Return test image: {image_path}")
+
+    if image_path:
+        image_path = Path(image_path)
+        if image_path.is_dir():
+            images_ = image_path.glob("*")
+        else:
+            images_ = image_path.glob(image_path.name)
+        images = list(images_)
+        logging.debug(f"List of images: {', '.join([el.as_posix() for el in images])}")
+        # shuffle list
+        shuffle(images)
+        # return first image that exists
+        for p2img in images:
+            if p2img.is_file():
+                logging.debug(f"Return image: {p2img.as_posix()}")
+                return p2img
+    return None
+
+
 @app.get(ENTRYPOINT_TAKE_PHOTO)
 def take_photo(
         exposure_time_microseconds: int = None,
@@ -156,9 +148,10 @@ def take_photo(
         "destination_ip": destination_ip_address,
         "destination_port": destination_port
     }
-    print(kwargs)
-    # elements = {ky: val for ky, val in kwargs.items() if val}
     cam = create_camera(**kwargs)
+
+    if emulate_camera:
+        cam.set_test_picture(get_test_image())
 
     t = [("start", default_timer())]
     image_array = cam.take_photo(exposure_time_microseconds)
@@ -172,14 +165,14 @@ def take_photo(
     t.append(("convert PIL", default_timer()))
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-    msg = f"take_photo({kwargs} took {diff} ms. take_photo({kwargs})"
+    msg = f"take_photo({kwargs}) took {diff} ms."
     logging.debug(msg)
     print(msg)
 
     return Response(
-        content=image_bytes, 
+        content=image_bytes,
         media_type="image/bmp"
-        )
+    )
 
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
@@ -199,30 +192,15 @@ def negate(boolean: bool):
 
 @app.get(ENTRYPOINT_TEST_IMAGE)
 def return_test_image():
-    # get path to image or folder / name pattern
-    image_path = get_env_variable("TEST_IMAGE_PATH", None)
-    logging.debug(f"Return test image: {image_path}")
-
-    if image_path:
-        image_path = Path(image_path)
-        if image_path.is_dir():
-            images_ = image_path.glob("*")
-        else:
-            images_ = image_path.glob(image_path.name)
-        images = list(images_)
-        logging.debug(f"List of images: {', '.join([el.as_posix() for el in images])}")
-        # shuffle list
-        shuffle(images)
-        # return first image that exists
-        for p2img in images:
-            if p2img.is_file():
-                logging.debug(f"Return image: {p2img.as_posix()}")
-                return FileResponse(
-                    p2img.as_posix(),
-                    media_type=f"image/{p2img.suffix.strip('.')}"
-                )
-    # return None otherwise
-    return None
+    p2img = get_test_image()
+    if isinstance(p2img, Path):
+        return FileResponse(
+            p2img.as_posix(),
+            media_type=f"image/{p2img.suffix.strip('.')}"
+        )
+    else:
+        # return None otherwise
+        return None
 
 
 if __name__ == "__main__":
