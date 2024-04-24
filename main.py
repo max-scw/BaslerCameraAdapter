@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
-# from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from pathlib import Path
 from random import shuffle
@@ -56,7 +56,37 @@ app = FastAPI(
 )
 
 # create endpoint for prometheus
-# Instrumentator().instrument(app).expose(app)  # produces a False in the console every time a valid entrypoint is called
+instrumentator = Instrumentator(
+    should_group_status_codes=False,
+    should_ignore_untemplated=True,
+    # should_instrument_requests_inprogress=True,
+    excluded_handlers=["/test/*", "/metrics"],
+    # should_respect_env_var=True,
+    # env_var_name="ENABLE_METRICS",
+    # inprogress_name="inprogress",
+    # inprogress_labels=True,
+)
+# add metrics
+instrumentator.add(
+    metrics.request_size(
+        should_include_handler=True,
+        should_include_method=False,
+        should_include_status=True,
+        # metric_namespace="a",
+        # metric_subsystem="b",
+    )
+)
+instrumentator.add(
+    metrics.response_size(
+        should_include_handler=True,
+        should_include_method=False,
+        should_include_status=True,
+        # metric_namespace="namespace",
+        # metric_subsystem="subsystem",
+    )
+)
+# expose app
+instrumentator.instrument(app, metric_namespace="basler-camera-adapter").expose(app)
 
 # set logging level
 logging.basicConfig(
@@ -117,6 +147,7 @@ def take_photo(
     port_max = 65535
     if destination_port and 1 < destination_port > port_max:
         raise ValueError(f"Destination port must be smaller than {port_max} but was destination_port={destination_port}")
+
     kwargs = {
         "serial_number": serial_number if not emulate_camera else None,
         "ip_address": ip_address if not emulate_camera else None,
@@ -125,11 +156,11 @@ def take_photo(
         "destination_ip": destination_ip_address,
         "destination_port": destination_port
     }
+    print(kwargs)
     # elements = {ky: val for ky, val in kwargs.items() if val}
     cam = create_camera(**kwargs)
 
-    t = []
-    t.append(("start", default_timer()))
+    t = [("start", default_timer())]
     image_array = cam.take_photo(exposure_time_microseconds)
     t.append(("take photo", default_timer()))
 

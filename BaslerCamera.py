@@ -122,23 +122,29 @@ def set_camera_parameter(
     return True
 
 
-def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout: int = None):
-    _transmission_type = cam.StreamGrabber.TransmissionType.GetValue()
-    _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
-    _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
-    logging.debug(f"take_picture(): {_transmission_type}, {_destination_ip}, {_destination_port} | {cam.IsOpen()}")
+def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout_milliseconds: int = 400):
+    # _transmission_type = cam.StreamGrabber.TransmissionType.GetValue()
+    # _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
+    # _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
+    # logging.debug(f"take_picture(): {_transmission_type}, {_destination_ip}, {_destination_port} | {cam.IsOpen()}")
 
-    t = []
-    t.append(("start", default_timer()))
+    t = [("start", default_timer())]
 
+    # set time how long the camera sensor is exposed to light
     _exposure_time = cam.ExposureTimeAbs.GetValue()
-    if exposure_time_microseconds and (exposure_time_microseconds != _exposure_time):
+    if (exposure_time_microseconds and
+            (exposure_time_microseconds >= 100) and
+            (exposure_time_microseconds != _exposure_time)):
         cam.ExposureTimeAbs.SetValue(exposure_time_microseconds)
     t.append(("set exposure time", default_timer()))  # TIMING
 
+    # timeout should not be shorter than the exposure time or 11 ms
+    t_expose_ms = (exposure_time_microseconds / 1000) if exposure_time_microseconds is not None else 1
+    timeout = max((timeout_milliseconds, t_expose_ms + 1, 11))
+
     # Wait for a grab result
     t.append(("print info", default_timer()))  # TIMING
-    grab_result = cam.GrabOne(timeout)
+    grab_result = cam.GrabOne(timeout)  # timeout in milliseconds
     t.append(("grab image", default_timer()))  # TIMING
 
     if grab_result.GrabSucceeded():
@@ -160,14 +166,14 @@ class BaslerCamera:
             self,
             ip_address: str = None,
             serial_number: int = None,
-            timeout: int = 1000,
+            timeout: int = 1000,  # milli seconds
             transmission_type: str = "Unicast",
             destination_ip: str = None,
             destination_port: int = None
     ) -> None:
         self.ip_address = ip_address
         self.serial_number = serial_number
-        self.timeout = timeout if timeout else 5000
+        self.timeout = timeout if timeout else 1000
         self.transmission_type = transmission_type
         self.destination_ip = destination_ip
         self.destination_port = destination_port
@@ -219,15 +225,21 @@ class BaslerCamera:
         return info
 
     def set_parameter(self) -> bool:
-        logging.debug(f"Setting Parameter: transmission_type={self.transmission_type}, "
-                      f"destination_ip={self.destination_ip}, "
-                      f"destination_port={self.destination_port}")
-        return set_camera_parameter(
-            self.camera,
-            transmission_type=self.transmission_type,
-            destination_ip=self.destination_ip,
-            destination_port=self.destination_port
-        )
+        if self.ip_address or self.serial_number:
+            logging.debug(
+                f"Setting Parameter: transmission_type={self.transmission_type}, "
+                f"destination_ip={self.destination_ip}, "
+                f"destination_port={self.destination_port}"
+            )
+            return set_camera_parameter(
+                self.camera,
+                transmission_type=self.transmission_type,
+                destination_ip=self.destination_ip,
+                destination_port=self.destination_port
+            )
+        else:
+            logging.debug("Camera is emulated. No parameters set.")
+            return False
 
     def take_photo(self, exposure_time_microseconds: int = None):
         # create camara object if necessary
@@ -238,7 +250,7 @@ class BaslerCamera:
         if not self.camera.IsOpen():
             self.camera.Open()
 
-        return take_picture(self.camera, exposure_time_microseconds, self.timeout)
+        return take_picture(self.camera, exposure_time_microseconds, timeout_milliseconds=self.timeout)
 
 
 # Example usage:
@@ -250,10 +262,10 @@ if __name__ == "__main__":
     )
     # Create camera instance with IP address
     camera = BaslerCamera(
-        ip_address="192.168.10.5",
+        # ip_address="192.168.10.5",
         timeout=1000,
-        transmission_type="Multicast",
-        destination_ip="192.168.10.221"
+        # transmission_type="Multicast",
+        # destination_ip="192.168.10.221"
     )
 
     # Connect to the camera
