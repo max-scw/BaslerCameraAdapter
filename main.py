@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from pathlib import Path
 from random import shuffle
@@ -28,6 +29,7 @@ from utils_env_vars import (
 from typing import Union
 
 
+# define endpoints
 ENTRYPOINT_TEST = "/test"
 ENTRYPOINT_TEST_IMAGE = ENTRYPOINT_TEST + "/image"
 
@@ -57,7 +59,41 @@ app = FastAPI(
 )
 
 
-# set logging level
+# create endpoint for prometheus
+instrumentator = Instrumentator(
+    should_group_status_codes=False,
+    should_ignore_untemplated=True,
+    # should_instrument_requests_inprogress=True,
+    excluded_handlers=["/test/*", "/metrics"],
+    # should_respect_env_var=True,
+    # env_var_name="ENABLE_METRICS",
+    # inprogress_name="inprogress",
+    # inprogress_labels=True,
+)
+# add metrics
+instrumentator.add(
+    metrics.request_size(
+        should_include_handler=True,
+        should_include_method=False,
+        should_include_status=True,
+        # metric_namespace="a",
+        # metric_subsystem="b",
+    )
+)
+instrumentator.add(
+    metrics.response_size(
+        should_include_handler=True,
+        should_include_method=False,
+        should_include_status=True,
+        # metric_namespace="namespace",
+        # metric_subsystem="subsystem",
+    )
+)
+# expose app
+instrumentator.instrument(app, metric_namespace="basler-camera-adapter").expose(app)
+
+
+# setup level
 logging.basicConfig(
     level=cast_logging_level(get_env_variable("LOGGING_LEVEL", None)),
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -66,7 +102,6 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ],
 )
-
 
 # ----- home
 @app.get("/")
