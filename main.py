@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
@@ -95,13 +95,14 @@ instrumentator.instrument(app, metric_namespace="basler-camera-adapter").expose(
 
 # setup level
 logging.basicConfig(
-    level=cast_logging_level(get_env_variable("LOGGING_LEVEL", None)),
+    level=cast_logging_level(get_env_variable("LOGGING_LEVEL", logging.DEBUG)),
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler(Path(get_env_variable("LOGFILE", "log")).with_suffix(".log")),
         logging.StreamHandler(sys.stdout)
     ],
 )
+
 
 # ----- home
 @app.get("/")
@@ -140,14 +141,17 @@ def create_camera(**kwargs):
 def get_test_image() -> Union[Path, None]:
     # get path to image or folder / name pattern
     image_path = get_env_variable("TEST_IMAGE_PATH", None)
-    logging.debug(f"Return test image: {image_path}")
+    logging.debug(f"Return test image: TEST_IMAGE_PATH={image_path}")
 
     if image_path:
-        image_path = Path(image_path)
-        if image_path.is_dir():
-            images_ = image_path.glob("*")
+        if isinstance(image_path, list):
+            images_ = [el for el in image_path if Path(el).is_file()]
         else:
-            images_ = image_path.glob(image_path.name)
+            image_path = Path(image_path)
+            if image_path.is_dir():
+                images_ = image_path.glob("*")
+            else:
+                images_ = image_path.glob(image_path.name)
         images = list(images_)
         logging.debug(f"List of images: {', '.join([el.as_posix() for el in images])}")
         # shuffle list
@@ -185,9 +189,22 @@ def take_photo(
     }
     cam = create_camera(**kwargs)
 
+    image_format = "bmp"  # default image format
     if emulate_camera:
-        cam.set_test_picture(get_test_image())
+        # PNG images are required for pypylon on linux
+        image_format = "PNG"
+        p2img = get_test_image()
+        # convert image if it is th wrong format
+        if p2img.suffix.lower() != f".{image_format}":
+            # open image
+            img = Image.open(p2img)
+            # save as PNG
+            p2img = Path("./testimage.png")
+            img.save(p2img, image_format)
+        # set test picture to camera
+        cam.set_test_picture(p2img)
 
+    logging.debug(f"take_photo({kwargs}): cam.take_photo({exposure_time_microseconds})")
     t = [("start", default_timer())]
     image_array = cam.take_photo(exposure_time_microseconds)
     t.append(("take photo", default_timer()))
@@ -195,14 +212,12 @@ def take_photo(
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
     with io.BytesIO() as buf:
-        im.save(buf, format='bmp')
+        im.save(buf, format=image_format)
         image_bytes = buf.getvalue()
     t.append(("convert PIL", default_timer()))
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-    msg = f"take_photo({kwargs}) took {diff} ms."
-    logging.debug(msg)
-    print(msg)
+    logging.debug(f"take_photo({kwargs}) took {diff} ms.")
 
     return Response(
         content=image_bytes,
@@ -239,7 +254,7 @@ def return_test_image():
 
 
 if __name__ == "__main__":
-    set_env_variable("LOGGING_LEVEL", logging.DEBUG)
+    # set_env_variable("LOGGING_LEVEL", logging.DEBUG)
     set_env_variable("TEST_IMAGE_PATH", "test_images")
 
     uvicorn.run(app=app, port=5051)

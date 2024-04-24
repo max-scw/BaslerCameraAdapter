@@ -244,11 +244,11 @@ class BaslerCamera:
 
     def set_test_picture(self, path_to_image: Union[Path, str] = None) -> bool:
         if path_to_image and (Path(path_to_image).exists()):
-            self.camera.ImageFilename = Path(path_to_image).as_posix()
-            logging.debug(f"Set test image to {self.camera.ImageFilename}.")
+            self.camera.ImageFilename.SetValue(Path(path_to_image).as_posix())
+            logging.debug(f"Test image of emulated camera was set to {self.camera.ImageFilename.GetValue()}.")
             # enable image file test pattern
             self.camera.ImageFileMode = "On"
-            # disable test pattern [ image file is "real-image"]
+            # disable test pattern [image file is "real-image"]
             self.camera.TestImageSelector = "Off"
             return True
         else:
