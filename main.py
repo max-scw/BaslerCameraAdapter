@@ -169,6 +169,7 @@ def take_photo(
         exposure_time_microseconds: int = None,
         serial_number: int = None,
         ip_address: str = None,
+        subnet_mask: str = None,
         emulate_camera: bool = False,
         timeout: int = None,
         transmission_type: str = None,
@@ -181,7 +182,8 @@ def take_photo(
 
     kwargs = {
         "serial_number": serial_number if not emulate_camera else None,
-        "ip_address": ip_address if not emulate_camera else None,
+        "ip_address": ip_address.strip("'").strip('"') if not emulate_camera else None,
+        "subnet_mask": subnet_mask.strip("'").strip('"'),
         "timeout": timeout,
         "transmission_type": transmission_type,
         "destination_ip": destination_ip_address,
@@ -228,9 +230,14 @@ def take_photo(
 @app.get(ENTRYPOINT_CAMERA_INFO)
 def get_camera_info(
         serial_number: int = None,
-        ip_address: str = None
+        ip_address: str = None,
+        subnet_mask: str = None
 ):
-    cam = create_camera(serial_number=serial_number, ip_address=ip_address)
+    cam = create_camera(
+        serial_number=serial_number,
+        ip_address=ip_address,
+        subnet_mask=subnet_mask
+    )
     return cam.get_camera_info()
 
 

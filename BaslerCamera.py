@@ -9,18 +9,23 @@ from typing import Union
 from utils_env_vars import set_env_variable
 
 
-def create_camera_with_ip_address(ip_address: str):  # -> SwigPyObject
-    # create a factory
+def create_camera_with_ip_address(ip_address: str, subnet_mask: str = None):  # -> SwigPyObject
+    # create a Transport Layer instance
     factory = pylon.TlFactory.GetInstance()
+
     # Create the transport layer
     ptl = factory.CreateTl("BaslerGigE")
     # Create an empty GigE device info object
-    empty_camera_info = ptl.CreateDeviceInfo()
+    device_info = ptl.CreateDeviceInfo()
     # Set the IP address of the (empty) device object
-    empty_camera_info.SetIpAddress(ip_address)
+    device_info.SetIpAddress(ip_address)
+    # Set subnet mask
+    if (subnet_mask is not None) and (subnet_mask != ""):
+        device_info.SetSubnetMask(subnet_mask)
+
     # Create the camera device object
-    camera_device = factory.CreateDevice(empty_camera_info)
-    return camera_device
+    device = factory.CreateDevice(device_info)
+    return device
 
 
 def get_camera_by_serial_number(serial_number: int = 24339728):  # -> SwigPyObject
@@ -41,14 +46,15 @@ def get_camera_by_serial_number(serial_number: int = 24339728):  # -> SwigPyObje
 
 
 def create_camera(
+        serial_number: int = None,
         ip_address: str = None,
-        serial_number: int = None
+        subnet_mask: str = None
 ) -> pylon.InstantCamera:
 
     if ip_address:
         # Connect to the camera using IP address
         logging.info(f"Connect to the camera using IP address: {ip_address}")
-        device = create_camera_with_ip_address(ip_address.strip("'").strip('"'))
+        device = create_camera_with_ip_address(ip_address, subnet_mask)
     elif serial_number:
         # Connect to the camera using serial number
         logging.info(f"Connect to the camera using serial number: {serial_number}")
@@ -63,6 +69,22 @@ def create_camera(
     return pylon.InstantCamera(device)
 
 
+def get_device_info(device: Union[pylon.InstantCamera, pylon.DeviceInfo]) -> dict:
+    if isinstance(device, pylon.InstantCamera):
+        device_info = device.GetDeviceInfo()
+    elif isinstance(device, pylon.DeviceInfo):
+        device_info = device
+    else:
+        raise TypeError(f"Unexpected input type {type(device)}. An 'InstantCamera' or 'DeviceInfo' object was expected.")
+
+    _, keys = device_info.GetPropertyNames()
+
+    info = dict()
+    for ky in keys:
+        _, info[ky] = device_info.GetPropertyValue(ky)
+    return info
+
+
 def get_parameter(cam: pylon.InstantCamera) -> dict:
     if not cam.IsOpen():
         raise Exception("Open camera first.")
@@ -71,7 +93,8 @@ def get_parameter(cam: pylon.InstantCamera) -> dict:
         "Transmission Type": cam.StreamGrabber.TransmissionType.GetValue(),
         "Destination Address": cam.StreamGrabber.DestinationAddr.GetValue(),
         "Destination Port": cam.StreamGrabber.DestinationPort.GetValue(),
-        "Acquisition Mode": cam.AcquisitionMode.GetValue()
+        "Driver Type": cam.StreamGrabber.Type.GetValue(),
+        "Acquisition Mode": cam.AcquisitionMode.GetValue(),
         }
     return info
 
@@ -90,27 +113,27 @@ def set_camera_parameter(
     # Transmission Type
     _transmission_type = cam.StreamGrabber.TransmissionType.GetValue()
     if transmission_type and (transmission_type != _transmission_type):
-        logging.debug(f"Setting Transmission Type to {transmission_type}.")
+        logging.debug(f"Setting Transmission Type to {transmission_type} (was {_transmission_type}).")
         cam.StreamGrabber.TransmissionType.SetValue(transmission_type)
 
-    # parameter are only writable if transmission type is not unicast
-    if transmission_type.lower() != "unicast":
+    # parameter are only writable if transmission type is Multicast
+    if transmission_type.lower() == "multicast":
         # Destination IP address
         _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
         if destination_ip and (destination_ip != _destination_ip):
-            logging.debug(f"Setting Destination Address to {destination_ip}.")
+            logging.debug(f"Setting Destination Address to {destination_ip} (was {_destination_ip}).")
             cam.StreamGrabber.DestinationAddr.SetValue(destination_ip)
 
-        # Destination Port
-        _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
-        if destination_port and (destination_port != _destination_port):
-            logging.debug(f"Setting Destination Port to {destination_port}.")
-            cam.StreamGrabber.DestinationPort.SetValue(destination_port)
+    # Destination Port
+    _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
+    if destination_port and (destination_port != _destination_port):
+        logging.debug(f"Setting Destination Port to {destination_port} (was {_destination_port}).")
+        cam.StreamGrabber.DestinationPort.SetValue(destination_port)
 
     # AcquisitionMode Mode
     _acquisition_mode = cam.AcquisitionMode.GetValue()
     if acquisition_mode and (transmission_type != _acquisition_mode):
-        logging.debug(f"Setting Acquisition Mode to {acquisition_mode}.")
+        logging.debug(f"Setting Acquisition Mode to {acquisition_mode} (was {_acquisition_mode}).")
         cam.AcquisitionMode.SetValue(acquisition_mode)
 
     # Bandwidth Optimization through compression. NOT AVAILABLE FOR ALL MODELS
@@ -124,10 +147,6 @@ def set_camera_parameter(
 
 
 def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout_milliseconds: int = 400):
-    # _transmission_type = cam.StreamGrabber.TransmissionType.GetValue()
-    # _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
-    # _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
-    # logging.debug(f"take_picture(): {_transmission_type}, {_destination_ip}, {_destination_port} | {cam.IsOpen()}")
 
     t = [("start", default_timer())]
 
@@ -136,11 +155,13 @@ def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = Non
     if (exposure_time_microseconds and
             (exposure_time_microseconds >= 100) and
             (exposure_time_microseconds != _exposure_time)):
+        # set exposure time
         cam.ExposureTimeAbs.SetValue(exposure_time_microseconds)
     t.append(("set exposure time", default_timer()))  # TIMING
 
-    # timeout should not be shorter than the exposure time or 11 ms
+    # convert exposure time from micro-seconds to milliseconds
     t_expose_ms = (exposure_time_microseconds / 1000) if exposure_time_microseconds is not None else 1
+    # timeout should not be shorter than the exposure time or 11 ms
     timeout = max((timeout_milliseconds, t_expose_ms + 1, 11))
 
     # Wait for a grab result
@@ -165,15 +186,17 @@ def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = Non
 class BaslerCamera:
     def __init__(
             self,
-            ip_address: str = None,
             serial_number: int = None,
+            ip_address: str = None,
+            subnet_mask: str = None,
             timeout: int = 1000,  # milli seconds
             transmission_type: str = "Unicast",
             destination_ip: str = None,
             destination_port: int = None
     ) -> None:
-        self.ip_address = ip_address
         self.serial_number = serial_number
+        self.ip_address = ip_address
+        self.subnet_mask = subnet_mask
         self.timeout = timeout if timeout else 1000
         self.transmission_type = transmission_type
         self.destination_ip = destination_ip
@@ -196,7 +219,11 @@ class BaslerCamera:
 
     def connect(self) -> bool:
         # create camera
-        self.camera = create_camera(self.ip_address, self.serial_number)
+        self.camera = create_camera(
+            serial_number=self.serial_number,
+            ip_address=self.ip_address,
+            subnet_mask=self.subnet_mask
+        )
         logging.debug(f"Camera info: {self.get_camera_info()}")
 
         self.camera.Open()
@@ -224,6 +251,13 @@ class BaslerCamera:
         else:
             info = {"Error": "No camera created yet."}
         return info
+
+    def get_device_info(self) -> dict:
+        if self.camera:
+            device_info = get_device_info(self.camera)
+        else:
+            device_info = {"Error": "No camera created yet."}
+        return device_info
 
     def set_parameter(self) -> bool:
         if self.ip_address or self.serial_number:
