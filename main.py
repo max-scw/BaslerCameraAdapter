@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+# from fastapi import FastAPI
+from fastapi_offline import FastAPIOffline as FastAPI
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
