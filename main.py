@@ -183,7 +183,7 @@ def take_photo(
     kwargs = {
         "serial_number": serial_number if not emulate_camera else None,
         "ip_address": ip_address.strip("'").strip('"') if not emulate_camera else None,
-        "subnet_mask": subnet_mask.strip("'").strip('"'),
+        "subnet_mask": subnet_mask.strip("'").strip('"') if subnet_mask is not None else None,
         "timeout": timeout,
         "transmission_type": transmission_type,
         "destination_ip": destination_ip_address,
