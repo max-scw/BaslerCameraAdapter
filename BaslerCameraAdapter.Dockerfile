@@ -29,7 +29,7 @@ COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt --no-cache-dir
 
 # Copy app into the container
-COPY main.py BaslerCamera.py utils_env_vars.py README.md LICENSE ./
+COPY main.py DataModels.py BaslerCamera.py utils_env_vars.py README.md LICENSE ./
 
 
 # set to non-root user

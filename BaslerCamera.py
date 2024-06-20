@@ -102,7 +102,7 @@ def get_parameter(cam: pylon.InstantCamera) -> dict:
 def set_camera_parameter(
         cam: pylon.InstantCamera,
         transmission_type: str = None,
-        destination_ip: str = None,
+        destination_ip_address: str = None,
         destination_port: int = None,
         acquisition_mode: str = "SingleFrame"  # "Continuous"
 ) -> bool:
@@ -191,7 +191,7 @@ class BaslerCamera:
             subnet_mask: str = None,
             timeout: int = 1000,  # milli seconds
             transmission_type: str = "Unicast",
-            destination_ip: str = None,
+            destination_ip_address: str = None,
             destination_port: int = None
     ) -> None:
         self.serial_number = serial_number
@@ -199,7 +199,7 @@ class BaslerCamera:
         self.subnet_mask = subnet_mask
         self.timeout = timeout if timeout else 1000
         self.transmission_type = transmission_type
-        self.destination_ip = destination_ip
+        self.destination_ip_address = destination_ip_address
         self.destination_port = destination_port
         self.camera = None
         logging.debug(f"Init {self}")
@@ -210,7 +210,7 @@ class BaslerCamera:
             "serial_number",
             "timeout",
             "transmission_type",
-            "destination_ip",
+            "destination_ip_address",
             "destination_port"
         ]
         params = {ky: getattr(self, ky) for ky in keys if getattr(self, ky)}
@@ -263,13 +263,13 @@ class BaslerCamera:
         if self.ip_address or self.serial_number:
             logging.debug(
                 f"Setting Parameter: transmission_type={self.transmission_type}, "
-                f"destination_ip={self.destination_ip}, "
+                f"destination_ip_address={self.destination_ip_address}, "
                 f"destination_port={self.destination_port}"
             )
             return set_camera_parameter(
                 self.camera,
                 transmission_type=self.transmission_type,
-                destination_ip=self.destination_ip,
+                destination_ip_address=self.destination_ip_address,
                 destination_port=self.destination_port
             )
         else:
