@@ -1,5 +1,3 @@
-version: "3"
-
 services:
   basler-camera-service:
     # container / image
@@ -15,9 +13,9 @@ services:
       - TZ=Europe/Berlin
       # customize
       - LOGGING_LEVEL=DEBUG
-#      - TEST_IMAGE_PATH=/home/app/testimages/*.bmp
+#      - TEST_IMAGE_PATH=/home/app/test/*.png
 #    volumes:
-#      - ./testimages:/home/app/testimages
+#      - ./testimages:/home/app/test
     ports:
       - 3956:3956
       - 46000:46000/udp  # set Streaming Port to fixed value with pylonViewer
