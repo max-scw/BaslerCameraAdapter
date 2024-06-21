@@ -210,14 +210,13 @@ async def take_photo(
 
         if p2img is not None:
             # PNG images are required for pypylon on linux
-            image_format_test_image = "PNG"
             # convert image if it is the wrong format
-            if p2img.suffix.upper() != f".{image_format_test_image}":
+            if p2img.suffix.lower() != ".png":
                 # open image
                 img = Image.open(p2img)
                 # save as PNG
-                p2test = Path(f"./testimage.{image_format_test_image}")
-                img.save(p2test, format=image_format.upper(), quality=image_quality)
+                p2img = Path("./testimage.png")
+                img.save(p2img, format="PNG", quality=image_quality)
 
             # set test picture to camera
             cam.set_test_picture(p2img)
