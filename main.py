@@ -204,18 +204,21 @@ async def take_photo(
     image_quality = params.quality
 
     if params.emulate_camera:
-        # PNG images are required for pypylon on linux
-        # image_format = "PNG"
         p2img = get_test_image()
-        # convert image if it is th wrong format
-        if p2img.suffix.lower() != f".{image_suffix}":
-            # open image
-            img = Image.open(p2img)
-            # save as PNG
-            p2img = Path(f"./testimage.{image_suffix}")
-            img.save(p2img, format=image_format, quality=image_quality)
-        # set test picture to camera
-        cam.set_test_picture(p2img)
+
+        if p2img is not None:
+            # PNG images are required for pypylon on linux
+            image_format_test = "PNG"
+            # convert image if it is the wrong format
+            if p2img.suffix.lower() != f".{image_format_test}":
+                # open image
+                img = Image.open(p2img)
+                # save as PNG
+                p2img = Path(f"./testimage.{image_format_test}")
+                logging.debug(f"Save converted test image to {p2img.as_posix()}")
+                img.save(p2img, format=image_format, quality=image_quality)
+            # set test picture to camera
+            cam.set_test_picture(p2img)
 
     logging.debug(f"take_photo({params}): cam.take_photo({params.exposure_time_microseconds})")
     t = [("start", default_timer())]
@@ -278,6 +281,6 @@ def return_test_image():
 
 
 if __name__ == "__main__":
-    set_env_variable("TEST_IMAGE_PATH", "test_images")
+    # set_env_variable("TEST_IMAGE_PATH", "test_images")
 
     uvicorn.run(app=app, port=5051, log_level=LOG_LEVEL)
