@@ -196,10 +196,7 @@ async def take_photo(
 
     image_format = params.format.strip(".")
     if image_format.lower() == "jpg":
-        image_suffix = "jpg"
         image_format = "jpeg"
-    else:
-        image_suffix = image_format
 
     image_quality = params.quality
 
@@ -208,15 +205,15 @@ async def take_photo(
 
         if p2img is not None:
             # PNG images are required for pypylon on linux
-            image_format_test = "PNG"
+            image_format_test_image = "png"
             # convert image if it is the wrong format
-            if p2img.suffix.lower() != f".{image_format_test}":
+            if p2img.suffix.lower() != f".{image_format_test_image}":
                 # open image
                 img = Image.open(p2img)
                 # save as PNG
-                p2img = Path(f"./testimage.{image_format_test}")
-                logging.debug(f"Save converted test image to {p2img.as_posix()}")
-                img.save(p2img, format=image_format, quality=image_quality)
+                p2test = Path(f"./testimage.{image_format_test_image}")
+                img.save(p2test, format=image_format, quality=image_quality)
+
             # set test picture to camera
             cam.set_test_picture(p2img)
 
@@ -239,10 +236,6 @@ async def take_photo(
         content=image_bytes,
         media_type=f"image/{image_format}"
     )
-    # return StreamingResponse(
-    #     image_bytes,
-    #     media_type="image/jpeg",
-    # )
 
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
