@@ -154,7 +154,7 @@ def create_camera(params: CameraParameter):
 
 def get_test_image() -> Union[Path, None]:
     # get path to image or folder / name pattern
-    image_path = get_env_variable("TEST_IMAGE_PATH", None)
+    image_path = get_env_variable("TEST_IMAGE_PATH", "/home/app/test")
     logging.debug(f"Return test image: TEST_IMAGE_PATH={image_path}")
 
     if image_path:
