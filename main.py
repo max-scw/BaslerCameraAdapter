@@ -36,13 +36,18 @@ DATETIME_INIT = datetime.now()
 # setup level
 log_file = get_env_variable("LOGFILE", None)
 LOG_LEVEL = get_env_variable("LOGGING_LEVEL", logging.DEBUG)
+
+# configure logging
 logging.basicConfig(
-    level=cast_logging_level(LOG_LEVEL),
-    # format="%(asctime)s [%(levelname)s] %(message)s",
-    # handlers=[logging.StreamHandler(sys.stdout)] #+
-    #          # [logging.FileHandler(Path(log_file).with_suffix(".log"))] if log_file is not None else [],
+    level=LOG_LEVEL,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    # handlers=[logging.StreamHandler(sys.stdout)] +
+    #          [logging.FileHandler(Path(log_file).with_suffix(".log"))] if log_file is not None else [],
     )
-logging.info(f"Logging configured: level={LOG_LEVEL}, file={log_file}")
+# get logger
+logger = logging.getLogger("uvicorn")
+# first logging message
+logger.info(f"Logging configured: level={LOG_LEVEL}, file={log_file}")
 
 
 # define endpoints
@@ -155,7 +160,7 @@ def create_camera(params: CameraParameter):
 def get_test_image() -> Union[Path, None]:
     # get path to image or folder / name pattern
     image_path = get_env_variable("TEST_IMAGE_PATH", "/home/app/test")
-    logging.debug(f"Return test image: TEST_IMAGE_PATH={image_path}")
+    logger.debug(f"Return test image: TEST_IMAGE_PATH={image_path}")
 
     if image_path:
         if isinstance(image_path, list):
@@ -167,13 +172,13 @@ def get_test_image() -> Union[Path, None]:
             else:
                 images_ = image_path.glob(image_path.name)
         images = list(images_)
-        logging.debug(f"List of images: {', '.join([el.as_posix() for el in images])}")
+        logger.debug(f"List of images: {', '.join([el.as_posix() for el in images])}")
         # shuffle list
         shuffle(images)
         # return first image that exists
         for p2img in images:
             if p2img.is_file():
-                logging.debug(f"Return image: {p2img.as_posix()}")
+                logger.debug(f"Return image: {p2img.as_posix()}")
                 return p2img
     return None
 
@@ -205,19 +210,19 @@ async def take_photo(
 
         if p2img is not None:
             # PNG images are required for pypylon on linux
-            image_format_test_image = "png"
+            image_format_test_image = "PNG"
             # convert image if it is the wrong format
-            if p2img.suffix.lower() != f".{image_format_test_image}":
+            if p2img.suffix.upper() != f".{image_format_test_image}":
                 # open image
                 img = Image.open(p2img)
                 # save as PNG
                 p2test = Path(f"./testimage.{image_format_test_image}")
-                img.save(p2test, format=image_format, quality=image_quality)
+                img.save(p2test, format=image_format.upper(), quality=image_quality)
 
             # set test picture to camera
             cam.set_test_picture(p2img)
 
-    logging.debug(f"take_photo({params}): cam.take_photo({params.exposure_time_microseconds})")
+    logger.debug(f"take_photo({params}): cam.take_photo({params.exposure_time_microseconds})")
     t = [("start", default_timer())]
     image_array = cam.take_photo(params.exposure_time_microseconds)
     t.append(("take photo", default_timer()))
@@ -230,7 +235,7 @@ async def take_photo(
     t.append(("convert PIL", default_timer()))
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-    logging.debug(f"take_photo({params}) took {diff} ms.")
+    logger.debug(f"take_photo({params}) took {diff} ms.")
 
     return Response(
         content=image_bytes,
@@ -275,5 +280,5 @@ def return_test_image():
 
 if __name__ == "__main__":
     # set_env_variable("TEST_IMAGE_PATH", "test_images")
-
+    logger.debug("====> Starting uvicorn server <====")
     uvicorn.run(app=app, port=5051, log_level=LOG_LEVEL)
