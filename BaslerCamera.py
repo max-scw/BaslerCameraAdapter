@@ -50,23 +50,29 @@ def create_camera(
         ip_address: str = None,
         subnet_mask: str = None
 ) -> pylon.InstantCamera:
-
+    t0 = default_timer()
     if ip_address:
         # Connect to the camera using IP address
-        logging.info(f"Connect to the camera using IP address: {ip_address}")
+        logging.info(f"Connecting to the camera using IP address {ip_address} and subnet mask {subnet_mask}")
         device = create_camera_with_ip_address(ip_address, subnet_mask)
     elif serial_number:
         # Connect to the camera using serial number
         logging.info(f"Connect to the camera using serial number: {serial_number}")
         cam_info = get_camera_by_serial_number(serial_number)
         device = pylon.TlFactory.GetInstance().CreateDevice(cam_info)
-        # device = pylon.InstantCamera()
     else:
         logging.info("Emulating a camera.")
         set_env_variable("PYLON_CAMEMU", 1)  # set how many cameras should be emulated
         device = pylon.TlFactory.GetInstance().CreateFirstDevice()
+
+    t1 = default_timer()
+    logging.debug(f"Getting camera device object took {(t1 - t0) * 1000:.4g} ms")
+
     # access / build the camera
-    return pylon.InstantCamera(device)
+    cam = pylon.InstantCamera(device)
+    t2 = default_timer()
+    logging.debug(f"Creating a camera instance took {(t2 - t1) * 1000:.4g} ms")
+    return cam
 
 
 def get_device_info(device: Union[pylon.InstantCamera, pylon.DeviceInfo]) -> dict:
@@ -120,9 +126,9 @@ def set_camera_parameter(
     if transmission_type.lower() == "multicast":
         # Destination IP address
         _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
-        if destination_ip and (destination_ip != _destination_ip):
-            logging.debug(f"Setting Destination Address to {destination_ip} (was {_destination_ip}).")
-            cam.StreamGrabber.DestinationAddr.SetValue(destination_ip)
+        if destination_ip_address and (destination_ip_address != _destination_ip):
+            logging.debug(f"Setting Destination Address to {destination_ip_address} (was {_destination_ip}).")
+            cam.StreamGrabber.DestinationAddr.SetValue(destination_ip_address)
 
     # Destination Port
     _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
@@ -147,7 +153,7 @@ def set_camera_parameter(
 
 
 def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout_milliseconds: int = 400):
-
+    t0 = default_timer()
     t = [("start", default_timer())]
 
     # set time how long the camera sensor is exposed to light
@@ -179,8 +185,8 @@ def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = Non
         raise RuntimeError("Failed to grab an image")
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-    logging.debug(f"take_photo() execution timing: {diff} ms")
-    return img
+    logging.debug(f"take_photo() execution timing: {diff} ms (total {(default_timer() - t0) * 1000:.4g} ms)")
+    return img  # FIXME: why is the image always gray?
 
 
 class BaslerCamera:
@@ -219,16 +225,19 @@ class BaslerCamera:
 
     def connect(self) -> bool:
         # create camera
+        t0 = default_timer()
         self.camera = create_camera(
             serial_number=self.serial_number,
             ip_address=self.ip_address,
             subnet_mask=self.subnet_mask
         )
-        logging.debug(f"Camera info: {self.get_camera_info()}")
+        t1 = default_timer()
+        logging.debug(f"Creating a camera took {(t1 - t0) * 1000:.4g} ms")
 
         self.camera.Open()
         self.set_parameter()
-        logging.info(f"{self}: {self.get_camera_info()}")
+        t2 = default_timer()
+        logging.info(f"{self}: {self.get_camera_info()} (total {(t2 - t0) * 1000:.4g} ms)")
         return True
 
     def disconnect(self) -> bool:
