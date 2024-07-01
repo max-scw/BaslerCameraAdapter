@@ -85,3 +85,8 @@ def cast_logging_level(var: str, default: int = logging.INFO) -> int:
                 return val
     else:
         return default
+    return var
+
+
+def get_logging_level(key: str = "LOGGING_LEVEL", default: int = logging.INFO) -> int:
+    return cast_logging_level(get_env_variable(key, default))
