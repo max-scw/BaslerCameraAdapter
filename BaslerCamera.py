@@ -122,13 +122,13 @@ def set_camera_parameter(
         logging.debug(f"Setting Transmission Type to {transmission_type} (was {_transmission_type}).")
         cam.StreamGrabber.TransmissionType.SetValue(transmission_type)
 
-    # parameter are only writable if transmission type is Multicast
-    if transmission_type.lower() == "multicast":
-        # Destination IP address
-        _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
-        if destination_ip_address and (destination_ip_address != _destination_ip):
-            logging.debug(f"Setting Destination Address to {destination_ip_address} (was {_destination_ip}).")
-            cam.StreamGrabber.DestinationAddr.SetValue(destination_ip_address)
+        # parameter are only writable if transmission type is Multicast
+        if transmission_type.lower() == "multicast":
+            # Destination IP address
+            _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
+            if destination_ip_address and (destination_ip_address != _destination_ip):
+                logging.debug(f"Setting Destination Address to {destination_ip_address} (was {_destination_ip}).")
+                cam.StreamGrabber.DestinationAddr.SetValue(destination_ip_address)
 
     # Destination Port
     _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
