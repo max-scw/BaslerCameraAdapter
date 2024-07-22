@@ -3,11 +3,35 @@ from pypylon import pylon
 from timeit import default_timer
 from pathlib import Path
 
+import re
+
 import logging
 
 from typing import Union
 
 from utils_env_vars import set_env_variable
+
+
+re_pixel_type = re.compile(r"(pylon\.)?(PixelType_)?[a-zA-Z]\w+", re.ASCII | re.IGNORECASE)
+re_pixel_type_prefix = re.compile(r"PixelType_", re.ASCII | re.IGNORECASE)
+def basler_pixe_type(pixel_type: str) -> int:
+    # default value
+    pixel_type_code = pylon.PixelType_Undefined
+
+    m = re_pixel_type.search(pixel_type)
+    if m:
+        string = m.group()
+        # strip prefix
+        m = re_pixel_type_prefix.search(string)
+        # build attribute name
+        if m:
+            attribute = f"PixelType_{string[m.end():]}"
+        else:
+            attribute = m.group()
+
+        if hasattr(pylon, attribute):
+            pixel_type_code = getattr(pylon, attribute)  # FIXME: this is a security risk!
+    return pixel_type_code
 
 
 def create_camera_with_ip_address(ip_address: str, subnet_mask: str = None):  # -> SwigPyObject
@@ -168,18 +192,26 @@ def set_exposure_time(cam: pylon.InstantCamera, exposure_time_microseconds: int 
     return t_expose_ms
 
 
-def get_image(grab_result) -> Union[np.ndarray, None]:
+def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Union[np.ndarray, None]:
     img = None
     if grab_result.GrabSucceeded():
         # Convert the grabbed image to PIL Image object
-        img = grab_result.GetArray()
+        if converter is None:
+            img = grab_result.GetArray()
+        else:
+            img = converter.Convert(grab_result)
         grab_result.Release()
     else:
         raise RuntimeError("Failed to grab an image")
     return img
 
 
-def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout_milliseconds: int = 400):
+def take_picture(
+        cam: pylon.InstantCamera,
+        exposure_time_microseconds: int = None,
+        timeout_milliseconds: int = 400,
+        converter: pylon.ImageFormatConverter = None
+):
     t0 = default_timer()
     t = [("start", default_timer())]
 
@@ -195,35 +227,35 @@ def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = Non
     grab_result = cam.GrabOne(timeout)  # timeout in milliseconds
     t.append(("grab image", default_timer()))  # TIMING
 
-    img = get_image(grab_result)
+    img = get_image(grab_result, converter)
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
     logging.debug(f"take_photo() execution timing: {diff} ms (total {(default_timer() - t0) * 1000:.4g} ms)")
-    return img  # FIXME: why is the image always gray?
+    return img
 
 
-def continuous_grabbing(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout: int = None):
-
-    # set exposure time
-    set_exposure_time(cam, exposure_time_microseconds)
-    # default timeout
-    if timeout is None:
-        timeout = pylon.waitForever
-
-    # activate image grabbing
-    if not cam.IsGrabbing():
-        cam.StartGrabbing()
-
-    i = 0
-    while cam.IsGrabbing():
-        grab_result = cam.RetrieveResult(timeout, pylon.TimeoutHandling_ThrowException)
-
-        if grab_result.GrabSucceeded():
-            img = get_image(grab_result)
-            print(f"{i} {img.shape}")
-            i += 1
-
-    cam.StopGrabbing()
+# def continuous_grabbing(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout: int = None):
+#
+#     # set exposure time
+#     set_exposure_time(cam, exposure_time_microseconds)
+#     # default timeout
+#     if timeout is None:
+#         timeout = pylon.waitForever
+#
+#     # activate image grabbing
+#     if not cam.IsGrabbing():
+#         cam.StartGrabbing()
+#
+#     i = 0
+#     while cam.IsGrabbing():
+#         grab_result = cam.RetrieveResult(timeout, pylon.TimeoutHandling_ThrowException)
+#
+#         if grab_result.GrabSucceeded():
+#             img = get_image(grab_result)
+#             print(f"{i} {img.shape}")
+#             i += 1
+#
+#     cam.StopGrabbing()
 
 
 class BaslerCamera:
@@ -235,7 +267,8 @@ class BaslerCamera:
             timeout: int = 1000,  # milli seconds
             transmission_type: str = "Unicast",
             destination_ip_address: str = None,
-            destination_port: int = None
+            destination_port: int = None,
+            pixel_type: int = pylon.PixelType_Undefined
     ) -> None:
         self.serial_number = serial_number
         self.ip_address = ip_address
@@ -244,13 +277,23 @@ class BaslerCamera:
         self.transmission_type = transmission_type
         self.destination_ip_address = destination_ip_address
         self.destination_port = destination_port
+        self.pixel_type = pixel_type
         self.camera = None
+
+        # build image converter
+        converter = pylon.ImageFormatConverter()
+        converter.OutputPixelFormat = self.pixel_type
+        converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
+        self.converter = converter
+
         logging.debug(f"Init {self}")
 
     def __repr__(self):
         keys = [
-            "ip_address",
             "serial_number",
+            "ip_address",
+            "subnet_mask",
+            "pixel_type",
             "timeout",
             "transmission_type",
             "destination_ip_address",

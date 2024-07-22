@@ -12,6 +12,7 @@ import io
 from PIL import Image
 from pypylon import pylon
 
+
 # versions / info
 import fastapi
 import sys
@@ -22,7 +23,7 @@ from datetime import datetime
 import logging
 
 # custom packages
-from BaslerCamera import BaslerCamera
+from BaslerCamera import BaslerCamera, basler_pixe_type
 from BaslerCameraThread import CameraThread
 from utils_env_vars import (
     get_env_variable,
@@ -222,6 +223,9 @@ async def take_photo(
         params.ip_address = params.ip_address.strip("'").strip('"')
     if params.subnet_mask:
         params.subnet_mask = params.subnet_mask.strip("'").strip('"')
+
+    if isinstance(params.pixel_type, str):
+        params.pixel_type = basler_pixe_type(params.pixel_type)
 
     image_format = params.format.strip(".")
     if image_format.lower() == "jpg":

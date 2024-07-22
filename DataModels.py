@@ -1,12 +1,14 @@
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
-from typing import Optional
+from typing import Optional, Union
 
 
 class CameraParameter(BaseModel):
     serial_number: Optional[int] = None
     ip_address: Optional[str] = None
     subnet_mask: Optional[str] = None
+
+    pixel_type: Optional[Union[int, str]] = -1
 
     transmission_type: Optional[str] = None
     destination_ip_address: Optional[str] = None

@@ -51,15 +51,16 @@ class CameraThread(threading.Thread):
             set_exposure_time(self.camera, exposure_time_microseconds)
 
     def run(self):
-        # set camera to grabbing mode
-        self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
-        logging.info("Start grabbing.")
         # build image converter
         converter = pylon.ImageFormatConverter()
         converter.OutputPixelFormat = self.pixel_type
         converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
         # Sets the alignment of the bits in the target pixel type if the target bit depth is greater than
         # the source bit depth, e.g., if you are converting from a 10-bit to a 16-bit format.
+
+        # set camera to grabbing mode
+        self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+        logging.info("Start grabbing.")
 
         while not self.exit_event.is_set():
             if self.camera.IsGrabbing():
