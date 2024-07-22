@@ -10,6 +10,7 @@ from pathlib import Path
 from random import shuffle
 import io
 from PIL import Image
+from pypylon import pylon
 
 # versions / info
 import fastapi
@@ -22,6 +23,7 @@ import logging
 
 # custom packages
 from BaslerCamera import BaslerCamera
+from BaslerCameraThread import CameraThread
 from utils_env_vars import (
     get_env_variable,
     cast_logging_level,
@@ -135,10 +137,12 @@ async def home():
 
 # ----- Interact with the Basler camera
 # create global camera instance
-CAMERA = None
+CAMERA: BaslerCamera = None
+CAMERA_THREAD: CameraThread = None
+USE_CONTINUOUS_ACQUISTITION: bool = True
 
 
-def create_camera(params: CameraParameter):
+def create_basler_camera(params: CameraParameter):
     # get local logger + set logging level
     logging.getLogger().setLevel(LOG_LEVEL)
 
@@ -229,7 +233,7 @@ async def take_photo(
 
     cam_params = CameraParameter(**{ky: getattr(params, ky) for ky in CameraParameter.model_fields})
     t.append(("Create CameraParameter object", default_timer()))
-    cam = create_camera(cam_params)
+    cam = create_basler_camera(cam_params)
     t.append(("Create camera", default_timer()))
 
     if params.emulate_camera:
@@ -251,7 +255,25 @@ async def take_photo(
 
     logging.debug(f"take_photo({params}): cam.take_photo({params.exposure_time_microseconds})")
 
-    image_array = cam.take_photo(params.exposure_time_microseconds)
+    if USE_CONTINUOUS_ACQUISTITION:
+        global CAMERA_THREAD
+        if CAMERA_THREAD is None:
+            logging.debug(f"Starting new camera thread with {cam}.")
+            # start camera thread
+            CAMERA_THREAD = CameraThread(cam.camera, pylon.PixelType_RGB8packed) # FIXME: make configurable
+            CAMERA_THREAD.start()
+        elif cam != CAMERA_THREAD.camera:
+            logging.debug(f"Restart new camera thread ({cam} != {CAMERA_THREAD.camera})")
+            # stop camera thread
+            CAMERA_THREAD.stop()
+            CAMERA_THREAD.join()
+            # start camera thread
+            CAMERA_THREAD = CameraThread(cam.camera, pylon.PixelType_RGB8packed)
+            CAMERA_THREAD.start()
+
+        image_array = CAMERA_THREAD.get_latest_image()
+    else:
+        image_array = cam.take_photo(params.exposure_time_microseconds)
     t.append(("take photo", default_timer()))
 
     # save image to an in-memory bytes buffer
@@ -276,7 +298,7 @@ def get_camera_info(
         ip_address: str = None,
         subnet_mask: str = None
 ):
-    cam = create_camera(
+    cam = create_basler_camera(
         CameraParameter(
             serial_number=serial_number,
             ip_address=ip_address,
@@ -284,6 +306,16 @@ def get_camera_info(
         )
     )
     return cam.get_camera_info()
+
+
+@app.get("/close-camera")
+def close_camera_thread():
+    global CAMERA_THREAD
+    if CAMERA_THREAD is not None:
+        CAMERA_THREAD.stop()
+        CAMERA_THREAD.join()
+        # reset camera thread object
+        CAMERA_THREAD = None
 
 
 # ----- TEST FUNCTIONS
@@ -314,4 +346,10 @@ if __name__ == "__main__":
     logger.debug(f"logger.level={logger.level}")
 
     logger.debug("====> Starting uvicorn server <====")
-    uvicorn.run(app=app, port=5051, log_level=LOG_LEVEL)
+    try:
+        uvicorn.run(app=app, port=5051, log_level=LOG_LEVEL)
+    except:
+        logging.info("Stopping camera thread...")
+        CAMERA_THREAD.stop()
+        CAMERA_THREAD.join()
+

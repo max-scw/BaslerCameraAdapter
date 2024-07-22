@@ -1,3 +1,4 @@
+import numpy as np
 from pypylon import pylon
 from timeit import default_timer
 from pathlib import Path
@@ -121,14 +122,15 @@ def set_camera_parameter(
     if transmission_type and (transmission_type != _transmission_type):
         logging.debug(f"Setting Transmission Type to {transmission_type} (was {_transmission_type}).")
         cam.StreamGrabber.TransmissionType.SetValue(transmission_type)
+        _transmission_type = transmission_type
 
-        # parameter are only writable if transmission type is Multicast
-        if transmission_type.lower() == "multicast":
-            # Destination IP address
-            _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
-            if destination_ip_address and (destination_ip_address != _destination_ip):
-                logging.debug(f"Setting Destination Address to {destination_ip_address} (was {_destination_ip}).")
-                cam.StreamGrabber.DestinationAddr.SetValue(destination_ip_address)
+    # parameter are only writable if transmission type is Multicast
+    if _transmission_type.lower() == "multicast":
+        # Destination IP address
+        _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
+        if destination_ip_address and (destination_ip_address != _destination_ip):
+            logging.debug(f"Setting Destination Address to {destination_ip_address} (was {_destination_ip}).")
+            cam.StreamGrabber.DestinationAddr.SetValue(destination_ip_address)
 
     # Destination Port
     _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
@@ -152,10 +154,7 @@ def set_camera_parameter(
     return True
 
 
-def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout_milliseconds: int = 400):
-    t0 = default_timer()
-    t = [("start", default_timer())]
-
+def set_exposure_time(cam: pylon.InstantCamera, exposure_time_microseconds: int = None) -> float:
     # set time how long the camera sensor is exposed to light
     _exposure_time = cam.ExposureTimeAbs.GetValue()
     if (exposure_time_microseconds and
@@ -163,10 +162,31 @@ def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = Non
             (exposure_time_microseconds != _exposure_time)):
         # set exposure time
         cam.ExposureTimeAbs.SetValue(exposure_time_microseconds)
-    t.append(("set exposure time", default_timer()))  # TIMING
 
     # convert exposure time from micro-seconds to milliseconds
-    t_expose_ms = (exposure_time_microseconds / 1000) if exposure_time_microseconds is not None else 1
+    t_expose_ms = (exposure_time_microseconds if exposure_time_microseconds is not None else _exposure_time) / 1000
+    return t_expose_ms
+
+
+def get_image(grab_result) -> Union[np.ndarray, None]:
+    img = None
+    if grab_result.GrabSucceeded():
+        # Convert the grabbed image to PIL Image object
+        img = grab_result.GetArray()
+        grab_result.Release()
+    else:
+        raise RuntimeError("Failed to grab an image")
+    return img
+
+
+def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout_milliseconds: int = 400):
+    t0 = default_timer()
+    t = [("start", default_timer())]
+
+    # set time how long the camera sensor is exposed to light
+    t_expose_ms = set_exposure_time(cam, exposure_time_microseconds)
+    t.append(("set exposure time", default_timer()))  # TIMING
+
     # timeout should not be shorter than the exposure time or 11 ms
     timeout = max((timeout_milliseconds, t_expose_ms + 1, 11))
 
@@ -175,18 +195,35 @@ def take_picture(cam: pylon.InstantCamera, exposure_time_microseconds: int = Non
     grab_result = cam.GrabOne(timeout)  # timeout in milliseconds
     t.append(("grab image", default_timer()))  # TIMING
 
-    if grab_result.GrabSucceeded():
-        # Convert the grabbed image to PIL Image object
-        img = grab_result.GetArray()
-        t.append(("get array", default_timer()))  # TIMING
-        grab_result.Release()
-        t.append(("release", default_timer()))  # TIMING
-    else:
-        raise RuntimeError("Failed to grab an image")
+    img = get_image(grab_result)
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
     logging.debug(f"take_photo() execution timing: {diff} ms (total {(default_timer() - t0) * 1000:.4g} ms)")
     return img  # FIXME: why is the image always gray?
+
+
+def continuous_grabbing(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout: int = None):
+
+    # set exposure time
+    set_exposure_time(cam, exposure_time_microseconds)
+    # default timeout
+    if timeout is None:
+        timeout = pylon.waitForever
+
+    # activate image grabbing
+    if not cam.IsGrabbing():
+        cam.StartGrabbing()
+
+    i = 0
+    while cam.IsGrabbing():
+        grab_result = cam.RetrieveResult(timeout, pylon.TimeoutHandling_ThrowException)
+
+        if grab_result.GrabSucceeded():
+            img = get_image(grab_result)
+            print(f"{i} {img.shape}")
+            i += 1
+
+    cam.StopGrabbing()
 
 
 class BaslerCamera:
@@ -307,6 +344,15 @@ class BaslerCamera:
             self.camera.Open()
 
         return take_picture(self.camera, exposure_time_microseconds, timeout_milliseconds=self.timeout)
+
+    def video_stream(self):
+        # create camara object if necessary
+        if self.camera is None:
+            self.connect()
+            # raise RuntimeError("Camera is not connected. Call connect() method first.")
+
+        if not self.camera.IsOpen():
+            self.camera.Open()
 
 
 # Example usage:

@@ -10,7 +10,7 @@ class CameraParameter(BaseModel):
 
     transmission_type: Optional[str] = None
     destination_ip_address: Optional[str] = None
-    destination_port: Optional[Annotated[int, Field(strict=False, le=65535, ge=0)]] = None
+    destination_port: Optional[Annotated[int, Field(strict=False, le=653535, ge=0)]] = None
 
 
 class CameraPhotoParameter(CameraParameter):
