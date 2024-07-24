@@ -10,7 +10,7 @@ class CameraParameter(BaseModel):
 
     pixel_type: Optional[Union[int, str]] = -1
 
-    transmission_type: Optional[str] = None
+    transmission_type: Optional[Literal["Unicast", "Multicast", "Broadcast"]] = None
     destination_ip_address: Optional[str] = None
     destination_port: Optional[Annotated[int, Field(strict=False, le=653535, ge=0)]] = None
 
