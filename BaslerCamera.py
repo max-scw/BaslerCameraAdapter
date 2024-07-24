@@ -25,7 +25,7 @@ def basler_pixe_type(pixel_type: str) -> int:
         m = re_pixel_type_prefix.search(string)
         # build attribute name
         if m:
-            attribute = m.end()
+            attribute = m.group()
         else:
             attribute = f"PixelType_{string}"
 
