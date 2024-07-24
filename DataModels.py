@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated
-from typing import Optional, Union
+from typing import Optional, Union, Literal
 
 
 class CameraParameter(BaseModel):
@@ -13,6 +13,8 @@ class CameraParameter(BaseModel):
     transmission_type: Optional[str] = None
     destination_ip_address: Optional[str] = None
     destination_port: Optional[Annotated[int, Field(strict=False, le=653535, ge=0)]] = None
+
+    acquisition_mode: Optional[Literal["Continuous", "SingleFrame"]] = "SingleFrame"
 
 
 class CameraPhotoParameter(CameraParameter):

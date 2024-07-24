@@ -27,7 +27,7 @@ def basler_pixe_type(pixel_type: str) -> int:
         if m:
             attribute = f"PixelType_{string[m.end():]}"
         else:
-            attribute = m.group()
+            attribute = string
 
         if hasattr(pylon, attribute):
             pixel_type_code = getattr(pylon, attribute)  # FIXME: this is a security risk!
@@ -203,6 +203,7 @@ def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Unio
         grab_result.Release()
     else:
         raise RuntimeError("Failed to grab an image")
+    grab_result.Release()
     return img
 
 
@@ -268,6 +269,7 @@ class BaslerCamera:
             transmission_type: str = "Unicast",
             destination_ip_address: str = None,
             destination_port: int = None,
+            acquisition_mode: str = "SingleFrame",
             pixel_type: int = pylon.PixelType_Undefined
     ) -> None:
         self.serial_number = serial_number
@@ -277,13 +279,17 @@ class BaslerCamera:
         self.transmission_type = transmission_type
         self.destination_ip_address = destination_ip_address
         self.destination_port = destination_port
+        self.acquisition_mode = acquisition_mode
         self.pixel_type = pixel_type
         self.camera = None
 
         # build image converter
-        converter = pylon.ImageFormatConverter()
-        converter.OutputPixelFormat = self.pixel_type
-        converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
+        if self.pixel_type == pylon.PixelType_Undefined:
+            converter = None
+        else:
+            converter = pylon.ImageFormatConverter()
+            converter.OutputPixelFormat = self.pixel_type
+            converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
         self.converter = converter
 
         logging.debug(f"Init {self}")
@@ -297,7 +303,8 @@ class BaslerCamera:
             "timeout",
             "transmission_type",
             "destination_ip_address",
-            "destination_port"
+            "destination_port",
+            "acquisition_mode",
         ]
         params = {ky: getattr(self, ky) for ky in keys if getattr(self, ky)}
         text_input_params = ", ".join([f"{ky}={vl}" for ky, vl in params.items()])
@@ -359,7 +366,8 @@ class BaslerCamera:
                 self.camera,
                 transmission_type=self.transmission_type,
                 destination_ip_address=self.destination_ip_address,
-                destination_port=self.destination_port
+                destination_port=self.destination_port,
+                acquisition_mode=self.acquisition_mode
             )
         else:
             logging.debug("Camera is emulated. No parameters set.")

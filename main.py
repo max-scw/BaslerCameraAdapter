@@ -10,8 +10,8 @@ from pathlib import Path
 from random import shuffle
 import io
 from PIL import Image
-from pypylon import pylon
 
+from time import sleep
 
 # versions / info
 import fastapi
@@ -233,6 +233,9 @@ async def take_photo(
 
     image_quality = params.quality
 
+    # hardcode acquisition mode to continuous
+    params.acquisition_mode = "Continuous"
+
     t.append(("Input parameter", default_timer()))
 
     cam_params = CameraParameter(**{ky: getattr(params, ky) for ky in CameraParameter.model_fields})
@@ -260,25 +263,35 @@ async def take_photo(
     logging.debug(f"take_photo({params}): cam.take_photo({params.exposure_time_microseconds})")
 
     if USE_CONTINUOUS_ACQUISTITION:
+        dt_sleep = 0.5  # FIXME: from env variables
         global CAMERA_THREAD
         if CAMERA_THREAD is None:
             logging.debug(f"Starting new camera thread with {cam}.")
             # start camera thread
-            CAMERA_THREAD = CameraThread(cam.camera, pylon.PixelType_RGB8packed) # FIXME: make configurable
+            CAMERA_THREAD = CameraThread(cam.camera, cam.pixel_type, dt_sleep=dt_sleep)
             CAMERA_THREAD.start()
-        elif cam != CAMERA_THREAD.camera:
-            logging.debug(f"Restart new camera thread ({cam} != {CAMERA_THREAD.camera})")
+            # wait for first image
+            sleep((params.exposure_time_microseconds + 25000) / 1e6)
+        elif (cam.camera != CAMERA_THREAD.camera) or (not CAMERA_THREAD.is_alive()):
+            logging.debug(f"Camera instances: {cam.camera} != {CAMERA_THREAD.camera}")
+
+            logging.debug(f"Restart new camera thread ({cam})")
             # stop camera thread
             CAMERA_THREAD.stop()
             CAMERA_THREAD.join()
             # start camera thread
-            CAMERA_THREAD = CameraThread(cam.camera, pylon.PixelType_RGB8packed)
+            CAMERA_THREAD = CameraThread(cam.camera, cam.pixel_type, dt_sleep=dt_sleep)
             CAMERA_THREAD.start()
+            # wait for first image
+            sleep((params.exposure_time_microseconds + 14000) / 1e6)
 
-        image_array = CAMERA_THREAD.get_latest_image()
+        image_array, timestamp = CAMERA_THREAD.get_latest_image()
     else:
         image_array = cam.take_photo(params.exposure_time_microseconds)
     t.append(("take photo", default_timer()))
+
+    if image_array is None:
+        raise HTTPException(400, "No image retrieved.")
 
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
@@ -316,10 +329,12 @@ def get_camera_info(
 def close_camera_thread():
     global CAMERA_THREAD
     if CAMERA_THREAD is not None:
+        logging.debug("Camera thread was open.")
         CAMERA_THREAD.stop()
         CAMERA_THREAD.join()
         # reset camera thread object
         CAMERA_THREAD = None
+    return True
 
 
 # ----- TEST FUNCTIONS
@@ -354,6 +369,6 @@ if __name__ == "__main__":
         uvicorn.run(app=app, port=5051, log_level=LOG_LEVEL)
     except:
         logging.info("Stopping camera thread...")
-        CAMERA_THREAD.stop()
-        CAMERA_THREAD.join()
-
+        if CAMERA_THREAD is not None:
+            CAMERA_THREAD.stop()
+            CAMERA_THREAD.join()
