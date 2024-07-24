@@ -25,9 +25,9 @@ def basler_pixe_type(pixel_type: str) -> int:
         m = re_pixel_type_prefix.search(string)
         # build attribute name
         if m:
-            attribute = f"PixelType_{string[m.end():]}"
+            attribute = m.end()
         else:
-            attribute = string
+            attribute = f"PixelType_{string}"
 
         if hasattr(pylon, attribute):
             pixel_type_code = getattr(pylon, attribute)  # FIXME: this is a security risk!
