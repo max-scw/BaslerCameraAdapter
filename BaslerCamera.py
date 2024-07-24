@@ -199,10 +199,10 @@ def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Unio
         if converter is None:
             img = grab_result.GetArray()
         else:
-            img = converter.Convert(grab_result)
+            img = converter.Convert(grab_result).GetArray()
         grab_result.Release()
     else:
-        raise RuntimeError("Failed to grab an image")
+        raise RuntimeError("Failed to grab an image.")
     grab_result.Release()
     return img
 
@@ -233,30 +233,6 @@ def take_picture(
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
     logging.debug(f"take_photo() execution timing: {diff} ms (total {(default_timer() - t0) * 1000:.4g} ms)")
     return img
-
-
-# def continuous_grabbing(cam: pylon.InstantCamera, exposure_time_microseconds: int = None, timeout: int = None):
-#
-#     # set exposure time
-#     set_exposure_time(cam, exposure_time_microseconds)
-#     # default timeout
-#     if timeout is None:
-#         timeout = pylon.waitForever
-#
-#     # activate image grabbing
-#     if not cam.IsGrabbing():
-#         cam.StartGrabbing()
-#
-#     i = 0
-#     while cam.IsGrabbing():
-#         grab_result = cam.RetrieveResult(timeout, pylon.TimeoutHandling_ThrowException)
-#
-#         if grab_result.GrabSucceeded():
-#             img = get_image(grab_result)
-#             print(f"{i} {img.shape}")
-#             i += 1
-#
-#     cam.StopGrabbing()
 
 
 class BaslerCamera:

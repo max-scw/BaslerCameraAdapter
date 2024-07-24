@@ -29,7 +29,7 @@ class CameraThread(threading.Thread):
         self.camera = cam
         self.pixel_type = pixel_type
         self.dt_sleep = dt_sleep if dt_sleep > 0 else 0.01
-        self.timeout = timeout if dt_sleep > 500 else 500
+        self.timeout = timeout if timeout > 500 else 500
 
         # threading
         # event object. This is more or less a flag
