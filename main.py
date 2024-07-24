@@ -211,6 +211,7 @@ async def take_photo(
 ):
     # get local logger + set logging level
     logging.getLogger().setLevel(LOG_LEVEL)
+    logging.debug(f"take_photo({params})")
 
     t0 = default_timer()
     t = [("start", default_timer())]
@@ -224,8 +225,10 @@ async def take_photo(
     if params.subnet_mask:
         params.subnet_mask = params.subnet_mask.strip("'").strip('"')
 
+    logging.debug(f"Pixel type: {params.pixel_type}")
     if isinstance(params.pixel_type, str):
-        params.pixel_type = basler_pixe_type(params.pixel_type)
+        params.pixel_type = basler_pixe_type(params.pixel_type.strip().strip("'").strip('"'))
+        logging.debug(f"Converted pixel type: {params.pixel_type}")
 
     image_format = params.format.strip(".")
     if image_format.lower() == "jpg":
@@ -268,10 +271,15 @@ async def take_photo(
         if CAMERA_THREAD is None:
             logging.debug(f"Starting new camera thread with {cam}.")
             # start camera thread
-            CAMERA_THREAD = CameraThread(cam.camera, cam.pixel_type, dt_sleep=dt_sleep)
+            CAMERA_THREAD = CameraThread(
+                cam.camera,
+                pixel_type=cam.pixel_type,
+                dt_sleep=dt_sleep,
+                timeout=params.timeout
+            )
             CAMERA_THREAD.start()
             # wait for first image
-            sleep((params.exposure_time_microseconds + 25000) / 1e6)
+            sleep(max(((params.exposure_time_microseconds + 25000) / 1e6, 0.1)))
         elif (cam.camera != CAMERA_THREAD.camera) or (not CAMERA_THREAD.is_alive()):
             logging.debug(f"Camera instances: {cam.camera} != {CAMERA_THREAD.camera}")
 
@@ -280,10 +288,15 @@ async def take_photo(
             CAMERA_THREAD.stop()
             CAMERA_THREAD.join()
             # start camera thread
-            CAMERA_THREAD = CameraThread(cam.camera, cam.pixel_type, dt_sleep=dt_sleep)
+            CAMERA_THREAD = CameraThread(
+                cam.camera,
+                pixel_type=cam.pixel_type,
+                dt_sleep=dt_sleep,
+                timeout=params.timeout
+            )
             CAMERA_THREAD.start()
             # wait for first image
-            sleep((params.exposure_time_microseconds + 14000) / 1e6)
+            sleep(max(((params.exposure_time_microseconds + 14000) / 1e6, 0.1)))
 
         image_array, timestamp = CAMERA_THREAD.get_latest_image()
     else:
