@@ -15,11 +15,11 @@ class CameraParameter(BaseModel):
     destination_port: Optional[Annotated[int, Field(strict=False, le=653535, ge=0)]] = None
 
     acquisition_mode: Optional[Literal["Continuous", "SingleFrame"]] = "SingleFrame"
+    timeout: Optional[int] = 1000 # milli seconds
 
 
 class CameraPhotoParameter(CameraParameter):
     exposure_time_microseconds: Optional[int] = 10000
-    timeout: Optional[int] = None  # milli seconds
 
     emulate_camera: bool = False
     # image

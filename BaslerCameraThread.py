@@ -10,7 +10,7 @@ from BaslerCamera import create_camera, get_image, set_exposure_time, get_image
 from time import sleep
 
 
-from typing import Union, Tuple
+from typing import Union, Tuple, Dict, Any
 
 
 class CameraThread(threading.Thread):
@@ -58,6 +58,10 @@ class CameraThread(threading.Thread):
             logging.info("Open camera.")
             self.camera.Open()
 
+    @property
+    def counter(self) -> int:
+        return self._counter
+
         # local functions
     def set_exposure_time(self, exposure_time_microseconds: int = None):
         # wrap function to local method
@@ -81,7 +85,7 @@ class CameraThread(threading.Thread):
                     logging.debug(f"Grabbed image: {img.shape}, type: {type(img)}")
                     with self.lock:
                         timestamp = datetime.now()
-                        self.latest_image = {"image": img, "timestamp": timestamp}
+                        self.latest_image = {"image": img, "timestamp": timestamp, "counter": self.counter}
                         logging.debug(f"Image set as latest image at {timestamp.isoformat()}.")
                 grab_result.Release()
             sleep(self.dt_sleep)  # To avoid excessive CPU usage
@@ -92,9 +96,15 @@ class CameraThread(threading.Thread):
         self.camera.StopGrabbing()
         self.camera.Close()
 
+    def get_image_info(self) -> Union[Dict[str, Any], None]:
+        return {
+            "shape": self.latest_image['image'].shape,
+            "timestamp": self.latest_image['timestamp'].isoformat(),
+            "counter": self.latest_image['counter']
+        } if isinstance(self.latest_image, dict) else None
+
     def get_latest_image(self) -> Tuple[Union[np.ndarray, None], Union[datetime, None]]:
-        info = (self.latest_image['image'].shape, self.latest_image['timestamp'].isoformat()) if isinstance(self.latest_image, dict) else None
-        logging.debug(f"Getting latest image: {info} ({self._counter}).")
+        logging.debug(f"Getting latest image: {self.get_image_info()} ({self.counter}).")
 
         with self.lock:
             if self.latest_image is None:
@@ -103,6 +113,30 @@ class CameraThread(threading.Thread):
                 img = self.latest_image["image"]
                 timestamp = self.latest_image["timestamp"]
             return img, timestamp
+
+    def get_image(self) -> Union[np.ndarray, None]:
+        counter = self.latest_image["counter"]
+        logging.debug(f"Get image: {self.get_image_info()}.")
+
+        # time to wait
+        times = (self.dt_sleep, self.camera.ExposureTimeAbs.GetValue() / 1e6)
+        dt_min = min(times)
+        dt_max = max(times)
+
+        n_max = dt_max // dt_min + 1
+        for i in range(n_max):
+            sleep(dt_min)  # seconds
+
+            if self.latest_image is not None:
+                counter_new = self.latest_image["counter"]
+                if counter != counter_new:
+                    logging.debug(f"Most recent image: {self.get_image_info()}.")
+                    return self.latest_image["image"]
+        logging.debug(f"No image found: {self.counter}.")
+        return None
+
+
+
 
 
 class TestThread(threading.Thread):
