@@ -9,7 +9,6 @@ from BaslerCamera import create_camera, get_image, set_exposure_time, get_image
 
 from time import sleep
 
-
 from typing import Union, Tuple, Dict, Any
 
 
@@ -114,17 +113,22 @@ class CameraThread(threading.Thread):
                 timestamp = self.latest_image["timestamp"]
             return img, timestamp
 
-    def get_image(self) -> Union[np.ndarray, None]:
-        counter = self.latest_image["counter"]
+    def get_image(self, t_wait_min: float = 0.1):
         logging.debug(f"Get image: {self.get_image_info()}.")
 
         # time to wait
         times = (self.dt_sleep, self.camera.ExposureTimeAbs.GetValue() / 1e6)
-        dt_min = min(times)
+        dt_min = max((min(times), t_wait_min))
         dt_max = max(times)
 
-        n_max = dt_max // dt_min + 1
+        n_max = int(dt_max // dt_min + 2)
+        logging.debug(f"Times: {times}, min: {dt_min}, max: {dt_max} | {n_max}")
+
+        counter = -1
         for i in range(n_max):
+            if (counter < 0) and (self.latest_image is not None):
+                counter = self.latest_image["counter"]
+
             sleep(dt_min)  # seconds
 
             if self.latest_image is not None:
@@ -132,11 +136,9 @@ class CameraThread(threading.Thread):
                 if counter != counter_new:
                     logging.debug(f"Most recent image: {self.get_image_info()}.")
                     return self.latest_image["image"]
-        logging.debug(f"No image found: {self.counter}.")
+
+        logging.debug(f"No image found: {self.counter} ({i}).")
         return None
-
-
-
 
 
 class TestThread(threading.Thread):
