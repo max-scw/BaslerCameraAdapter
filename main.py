@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-#from fastapi_offline import FastAPIOffline as FastAPI
+# from fastapi_offline import FastAPIOffline as FastAPI
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 
@@ -32,7 +32,11 @@ from utils_env_vars import (
     get_logging_level
 )
 
-from DataModels import CameraParameter, CameraPhotoParameter
+from DataModels import (
+    BaslerCameraSettings,
+    BaslerCameraParams,
+    PhotoParams
+)
 from typing import Union
 
 DATETIME_INIT = datetime.now()
@@ -47,11 +51,10 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)] +
              [logging.FileHandler(Path(log_file).with_suffix(".log"))] if log_file is not None else [],
-    )
+)
 
 # first logging message
 logging.info(f"Logging configured: level={LOG_LEVEL}, file={log_file}")
-
 
 # define endpoints
 ENTRYPOINT_TEST = "/test"
@@ -64,7 +67,6 @@ ENTRYPOINT_CAMERA_INFO = ENTRYPOINT_BASLER_SINGLE_FRAME + "/get-camera-info"
 ENTRYPOINT_BASLER_CONTINUOUS_FRAME = ENTRYPOINT_BASLER + "/continuous-acquisition"
 ENTRYPOINT_GET_IMAGE = ENTRYPOINT_BASLER_CONTINUOUS_FRAME + "/get-image"
 ENTRYPOINT_CLOSE = ENTRYPOINT_BASLER_CONTINUOUS_FRAME + "/close"
-
 
 # set up fastAPI
 title = "BaslerCameraAdapter"
@@ -89,7 +91,6 @@ app = FastAPI(
     contact=contact,
     license_info=license_info
 )
-
 
 # create endpoint for prometheus
 instrumentator = Instrumentator(
@@ -129,26 +130,32 @@ instrumentator.instrument(app, metric_namespace="basler-camera-adapter").expose(
 @app.get("/")
 async def home():
     return {
-            "Title": title,
-            "Description": summary,
-            "Help": "see /docs for help (automatic docs with Swagger UI).",
-            "Software": {
-                "fastAPI": f"version {fastapi.__version__}",
-                "Python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-            },
-            "License": license_info,
-            "Impress": contact,
-            "Startup date": DATETIME_INIT
-        }
+        "Title": title,
+        "Description": summary,
+        "Help": "see /docs for help (automatic docs with Swagger UI).",
+        "Software": {
+            "fastAPI": f"version {fastapi.__version__}",
+            "Python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        },
+        "License": license_info,
+        "Impress": contact,
+        "Startup date": DATETIME_INIT
+    }
+
 
 # ----- Interact with the Basler camera
 # create global camera instance
 CAMERA: BaslerCamera = None
 CAMERA_THREAD: CameraThread = None
-USE_CONTINUOUS_ACQUISTITION: bool = True
 
 
-def create_basler_camera(params: CameraParameter) -> BaslerCamera:
+def stop_thread(thread) -> bool:
+    thread.stop()
+    thread.join()
+    return True
+
+
+def create_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
     # get local logger + set logging level
     logging.getLogger().setLevel(LOG_LEVEL)
     t1 = default_timer()
@@ -159,7 +166,8 @@ def create_basler_camera(params: CameraParameter) -> BaslerCamera:
     if (
             (CAMERA is None)
             or
-            (isinstance(CAMERA, BaslerCamera) and any([val != getattr(CAMERA, ky) for ky, val in params.dict().items()]))
+            (isinstance(CAMERA, BaslerCamera) and any(
+                [val != getattr(CAMERA, ky) for ky, val in params.dict().items()]))
     ):
         # disconnect camera if existing
         if isinstance(CAMERA, BaslerCamera):
@@ -211,12 +219,16 @@ def get_test_image() -> Union[Path, None]:
 
 @app.get(ENTRYPOINT_TAKE_PHOTO)
 async def take_single_photo(
-        params: CameraPhotoParameter = Depends(),
+        camera_params: BaslerCameraSettings = Depends(),
+        photo_params: PhotoParams = Depends()
 ):
-    # hardcode acquisition mode to continuous
-    params.acquisition_mode = "SingleFrame"
+    # hardcode acquisition mode to single frame
+    camera_params_ = BaslerCameraParams(
+        **camera_params.dict(),
+        acquisition_mode="SingleFrame"
+    )
 
-    return take_picture(params)
+    return take_picture(camera_params_, photo_params)
 
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
@@ -226,7 +238,7 @@ def get_camera_info(
         subnet_mask: str = None
 ):
     cam = create_basler_camera(
-        CameraParameter(
+        BaslerCameraParams(
             serial_number=serial_number,
             ip_address=ip_address,
             subnet_mask=subnet_mask
@@ -237,52 +249,56 @@ def get_camera_info(
 
 @app.get(ENTRYPOINT_GET_IMAGE)
 async def get_latest_photo(
-        params: CameraPhotoParameter = Depends(),
+        camera_params: BaslerCameraSettings = Depends(),
+        photo_params: PhotoParams = Depends()
 ):
     # hardcode acquisition mode to continuous
-    params.acquisition_mode = "Continuous"
+    camera_params_ = BaslerCameraParams(
+        **camera_params.dict(),
+        acquisition_mode="Continuous"
+    )
 
-    return take_picture(params)
+    return take_picture(camera_params_, photo_params)
 
 
-def process_input_variables(params: CameraPhotoParameter):
+def process_input_variables(camera_params: BaslerCameraParams, photo_params: PhotoParams):
     # # get local logger + set logging level
     # logging.getLogger().setLevel(LOG_LEVEL)
-    logging.debug(f"Process input variables: {params}")
+    logging.debug(f"Process input variables: camera={camera_params}, photo={photo_params}")
 
     # add functionality to emulate a camera
-    if params.emulate_camera:
-        params.serial_number = None
-        params.ip_address = None
+    if photo_params.emulate_camera:
+        camera_params.serial_number = None
+        camera_params.ip_address = None
 
-    if params.ip_address:
-        params.ip_address = params.ip_address.strip("'").strip('"')
-    if params.subnet_mask:
-        params.subnet_mask = params.subnet_mask.strip("'").strip('"')
+    if camera_params.ip_address:
+        camera_params.ip_address = camera_params.ip_address.strip("'").strip('"')
+    if camera_params.subnet_mask:
+        camera_params.subnet_mask = camera_params.subnet_mask.strip("'").strip('"')
 
-    logging.debug(f"Pixel type: {params.pixel_type}")
-    if isinstance(params.pixel_type, str):
-        params.pixel_type = basler_pixe_type(params.pixel_type.strip().strip("'").strip('"'))
-        logging.debug(f"Converted pixel type: {params.pixel_type}")
+    logging.debug(f"Pixel type: {camera_params.pixel_type}")
+    if isinstance(camera_params.pixel_type, str):
+        camera_params.pixel_type = basler_pixe_type(camera_params.pixel_type.strip().strip("'").strip('"'))
+        logging.debug(f"Converted pixel type: {camera_params.pixel_type}")
 
-    image_format = params.format.strip(".")
+    image_format = photo_params.format.strip(".")
     if image_format.lower() == "jpg":
         image_format = "jpeg"
 
-    params.format = image_format
-    return params
+    photo_params.format = image_format
+    return camera_params, photo_params
 
 
-def get_camera(params: CameraPhotoParameter) -> BaslerCamera:
+def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> BaslerCamera:
     # # get local logger + set logging level
     # logging.getLogger().setLevel(LOG_LEVEL)
 
     # extract parameter for a CameraParameter object
     t0 = default_timer()
-    cam_params = CameraParameter(**{ky: getattr(params, ky) for ky in CameraParameter.model_fields})
+    cam_params = BaslerCameraParams(**{ky: getattr(camera_params, ky) for ky in BaslerCameraParams.model_fields})
     cam = create_basler_camera(cam_params)
 
-    if params.emulate_camera:
+    if photo_params.emulate_camera:
         p2img = get_test_image()
 
         if p2img is not None:
@@ -293,7 +309,7 @@ def get_camera(params: CameraPhotoParameter) -> BaslerCamera:
                 img = Image.open(p2img)
                 # save as PNG
                 p2img = Path("./testimage.png")
-                img.save(p2img, format="PNG", quality=params.quality)
+                img.save(p2img, format="PNG", quality=photo_params.quality)
 
             # set test picture to camera
             cam.set_test_picture(p2img)
@@ -303,52 +319,48 @@ def get_camera(params: CameraPhotoParameter) -> BaslerCamera:
 
 
 def take_picture(
-        params: CameraPhotoParameter = Depends(),
+        camera_params: BaslerCameraParams = Depends(),
+        photo_params: PhotoParams = Depends(),
         dt_sleep: float = 0.1,
 ):
     t0 = default_timer()
     t = [("start", default_timer())]
-    params = process_input_variables(params)
+    camera_params, photo_params = process_input_variables(camera_params, photo_params)
     t.append(("process_input_variables()", default_timer()))
 
-    cam = get_camera(params)
+    cam = get_camera(camera_params, photo_params)
     t.append(("get_camera()", default_timer()))
 
-    if params.acquisition_mode == "Continuous":
+    if camera_params.acquisition_mode == "Continuous":
+        # initialize control variable
+        start_thread = False
+
         global CAMERA_THREAD
         if CAMERA_THREAD is None:
+            start_thread = True
+        elif (cam.camera != CAMERA_THREAD.camera) or (not CAMERA_THREAD.is_alive()):
+            start_thread = True
+            logging.debug(f"Restart new camera thread ({cam})")
+            # stop camera thread
+            stop_thread(CAMERA_THREAD)
+
+        if start_thread:
             logging.debug(f"Starting new camera thread with {cam}.")
             # start camera thread
             CAMERA_THREAD = CameraThread(
                 cam.camera,
                 pixel_type=cam.pixel_type,
                 dt_sleep=dt_sleep,
-                timeout=params.timeout
+                timeout=photo_params.timeout
             )
             CAMERA_THREAD.start()
             # wait for first image
-            sleep(max(((params.exposure_time_microseconds + 25000) / 1e6, 0.1)))
-        elif (cam.camera != CAMERA_THREAD.camera) or (not CAMERA_THREAD.is_alive()):
-            logging.debug(f"Camera instances: {cam.camera} != {CAMERA_THREAD.camera}")
+            sleep(max(((photo_params.exposure_time_microseconds + 42000) / 1e6, 0.1)))
 
-            logging.debug(f"Restart new camera thread ({cam})")
-            # stop camera thread
-            CAMERA_THREAD.stop()
-            CAMERA_THREAD.join()
-            # start camera thread
-            CAMERA_THREAD = CameraThread(
-                cam.camera,
-                pixel_type=cam.pixel_type,
-                dt_sleep=dt_sleep,
-                timeout=params.timeout
-            )
-            CAMERA_THREAD.start()
-            # wait for first image
-            sleep(max(((params.exposure_time_microseconds + 14000) / 1e6, 0.1)))
-
+        # get image
         image_array, timestamp = CAMERA_THREAD.get_latest_image()
     else:
-        image_array = cam.take_photo(params.exposure_time_microseconds)
+        image_array = cam.take_photo(photo_params.exposure_time_microseconds)
     t.append(("take photo", default_timer()))
 
     if image_array is None:
@@ -357,16 +369,17 @@ def take_picture(
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
     with io.BytesIO() as buf:
-        im.save(buf, format=params.format, quality=params.quality)
+        im.save(buf, format=photo_params.format, quality=photo_params.quality)
         image_bytes = buf.getvalue()
     t.append(("Convert bytes to PIL image", default_timer()))
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-    logging.info(f"take_picture({params}) took {diff} ms (total {(default_timer() - t0) * 1000:.4g} ms).")
+    logging.info(f"take_picture({camera_params}, {photo_params}) took {diff} ms "
+                 f"(total {(default_timer() - t0) * 1000:.4g} ms).")
 
     return Response(
         content=image_bytes,
-        media_type=f"image/{params.format}"
+        media_type=f"image/{photo_params.format}"
     )
 
 
@@ -375,10 +388,7 @@ def close_camera_thread():
     global CAMERA_THREAD
     if CAMERA_THREAD is not None:
         logging.debug("Camera thread was open.")
-        CAMERA_THREAD.stop()
-        CAMERA_THREAD.join()
-        # reset camera thread object
-        CAMERA_THREAD = None
+        stop_thread(CAMERA_THREAD)
     return True
 
 
