@@ -23,17 +23,13 @@ from datetime import datetime
 import logging
 
 # custom packages
-from BaslerCamera import BaslerCamera, basler_pixe_type
+from BaslerCamera import BaslerCamera, cast_basler_pixe_type
 from BaslerCameraThread import CameraThread
-from utils_env_vars import (
-    get_env_variable,
-    cast_logging_level,
-    set_env_variable,
-    get_logging_level
-)
+from utils_env_vars import get_env_variable, get_logging_level
 
 from DataModels import (
     BaslerCameraSettings,
+    BaslerCameraRequest,
     BaslerCameraParams,
     PhotoParams
 )
@@ -217,50 +213,6 @@ def get_test_image() -> Union[Path, None]:
     return None
 
 
-@app.get(ENTRYPOINT_TAKE_PHOTO)
-async def take_single_photo(
-        camera_params: BaslerCameraSettings = Depends(),
-        photo_params: PhotoParams = Depends()
-):
-    # hardcode acquisition mode to single frame
-    camera_params_ = BaslerCameraParams(
-        **camera_params.dict(),
-        acquisition_mode="SingleFrame"
-    )
-
-    return take_picture(camera_params_, photo_params)
-
-
-@app.get(ENTRYPOINT_CAMERA_INFO)
-def get_camera_info(
-        serial_number: int = None,
-        ip_address: str = None,
-        subnet_mask: str = None
-):
-    cam = create_basler_camera(
-        BaslerCameraParams(
-            serial_number=serial_number,
-            ip_address=ip_address,
-            subnet_mask=subnet_mask
-        )
-    )
-    return cam.get_camera_info()
-
-
-@app.get(ENTRYPOINT_GET_IMAGE)
-async def get_latest_photo(
-        camera_params: BaslerCameraSettings = Depends(),
-        photo_params: PhotoParams = Depends()
-):
-    # hardcode acquisition mode to continuous
-    camera_params_ = BaslerCameraParams(
-        **camera_params.dict(),
-        acquisition_mode="Continuous"
-    )
-
-    return take_picture(camera_params_, photo_params)
-
-
 def process_input_variables(camera_params: BaslerCameraParams, photo_params: PhotoParams):
     # # get local logger + set logging level
     # logging.getLogger().setLevel(LOG_LEVEL)
@@ -278,7 +230,7 @@ def process_input_variables(camera_params: BaslerCameraParams, photo_params: Pho
 
     logging.debug(f"Pixel type: {camera_params.pixel_type}")
     if isinstance(camera_params.pixel_type, str):
-        camera_params.pixel_type = basler_pixe_type(camera_params.pixel_type.strip().strip("'").strip('"'))
+        camera_params.pixel_type = cast_basler_pixe_type(camera_params.pixel_type)
         logging.debug(f"Converted pixel type: {camera_params.pixel_type}")
 
     image_format = photo_params.format.strip(".")
@@ -381,6 +333,52 @@ def take_picture(
         content=image_bytes,
         media_type=f"image/{photo_params.format}"
     )
+
+
+@app.get(ENTRYPOINT_TAKE_PHOTO)
+async def take_single_photo(
+        camera_params: BaslerCameraRequest = Depends(),
+        photo_params: PhotoParams = Depends()
+):
+    # hardcode acquisition mode to single frame
+    camera_params_ = BaslerCameraParams(
+        **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
+        pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
+        acquisition_mode="SingleFrame"
+    )
+
+    return take_picture(camera_params_, photo_params)
+
+
+@app.get(ENTRYPOINT_CAMERA_INFO)
+def get_camera_info(
+        serial_number: int = None,
+        ip_address: str = None,
+        subnet_mask: str = None
+):
+    cam = create_basler_camera(
+        BaslerCameraParams(
+            serial_number=serial_number,
+            ip_address=ip_address,
+            subnet_mask=subnet_mask
+        )
+    )
+    return cam.get_camera_info()
+
+
+@app.get(ENTRYPOINT_GET_IMAGE)
+async def get_latest_photo(
+        camera_params: BaslerCameraRequest = Depends(),
+        photo_params: PhotoParams = Depends()
+):
+    # hardcode acquisition mode to continuous
+    camera_params_ = BaslerCameraParams(
+        **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
+        pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
+        acquisition_mode="Continuous"
+    )
+
+    return take_picture(camera_params_, photo_params)
 
 
 @app.get(ENTRYPOINT_CLOSE)

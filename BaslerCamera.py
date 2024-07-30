@@ -14,7 +14,16 @@ from utils_env_vars import set_env_variable
 
 re_pixel_type = re.compile(r"(pylon\.)?(PixelType_)?[a-zA-Z]\w+", re.ASCII | re.IGNORECASE)
 re_pixel_type_prefix = re.compile(r"PixelType_", re.ASCII | re.IGNORECASE)
-def basler_pixe_type(pixel_type: str) -> int:
+def cast_basler_pixe_type(pixel_type: str) -> int:
+    """
+    Casts strings representing a Basler pixel type into their corresponding integer code.
+
+    :param pixel_type: string like PixelType_Mono8 or Mono8 or just mono8
+    :return:
+    """
+    # strip leading / tailing characters input
+    pixel_type = pixel_type.strip().strip("'").strip('"')
+
     # default value
     pixel_type_code = pylon.PixelType_Undefined
 
@@ -27,7 +36,7 @@ def basler_pixe_type(pixel_type: str) -> int:
         if m:
             attribute = m.group()
         else:
-            attribute = f"PixelType_{string}"
+            attribute = f"PixelType_{string[0].upper()}{string[1:]}"
 
         if hasattr(pylon, attribute):
             pixel_type_code = getattr(pylon, attribute)  # FIXME: this is a security risk!
