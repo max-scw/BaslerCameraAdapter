@@ -13,6 +13,7 @@ services:
       - TZ=Europe/Berlin
       # customize
       - LOGGING_LEVEL=DEBUG
+      - FRAMES_PER_SECOND=15
 #      - TEST_IMAGE_PATH=/home/app/test/*.png
 #    volumes:
 #      - ./testimages:/home/app/test

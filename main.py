@@ -35,7 +35,10 @@ from DataModels import (
 )
 from typing import Union
 
+# store time stamp to display the startup time at default entry point
 DATETIME_INIT = datetime.now()
+
+T_SLEEP = 1 / get_logging_level("FRAMES_PER_SECOND", 10)
 
 # setup level
 log_file = get_env_variable("LOGFILE", None)
@@ -273,7 +276,6 @@ def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> 
 def take_picture(
         camera_params: BaslerCameraParams = Depends(),
         photo_params: PhotoParams = Depends(),
-        dt_sleep: float = 0.1,
 ):
     t0 = default_timer()
     t = [("start", default_timer())]
@@ -302,12 +304,12 @@ def take_picture(
             CAMERA_THREAD = CameraThread(
                 cam.camera,
                 pixel_type=cam.pixel_type,
-                dt_sleep=dt_sleep,
+                dt_sleep=T_SLEEP,
                 timeout=photo_params.timeout
             )
             CAMERA_THREAD.start()
             # wait for first image
-            sleep(max(((photo_params.exposure_time_microseconds + 42000) / 1e6, 0.1)))
+            sleep(max(((photo_params.exposure_time_microseconds + 42000) / 1e6, 0.1, T_SLEEP)))
 
         # get image
         image_array, timestamp = CAMERA_THREAD.get_latest_image()
@@ -343,7 +345,7 @@ async def take_single_photo(
     # hardcode acquisition mode to single frame
     camera_params_ = BaslerCameraParams(
         **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
-        pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
+        pixel_type=cast_basler_pixe_type(photo_params.pixel_type),
         acquisition_mode="SingleFrame"
     )
 
@@ -374,7 +376,7 @@ async def get_latest_photo(
     # hardcode acquisition mode to continuous
     camera_params_ = BaslerCameraParams(
         **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
-        pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
+        pixel_type=cast_basler_pixe_type(photo_params.pixel_type),
         acquisition_mode="Continuous"
     )
 
