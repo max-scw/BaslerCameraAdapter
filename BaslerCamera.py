@@ -186,7 +186,7 @@ def set_camera_parameter(
     # self.camera.BslImageCompressionRatio.Value = 30
 
     _pixel_format = cam.PixelFormat.GetValue()
-    if _pixel_format != pixel_type:
+    if pixel_type and (_pixel_format != pixel_type):
         logging.debug(f"Setting Pixel Format to {pixel_type} (was {_pixel_format}).")
         cam.PixelFormat.SetValue(pixel_type)
     return True
@@ -357,7 +357,8 @@ class BaslerCamera:
                 transmission_type=self.transmission_type,
                 destination_ip_address=self.destination_ip_address,
                 destination_port=self.destination_port,
-                acquisition_mode=self.acquisition_mode
+                acquisition_mode=self.acquisition_mode,
+                pixel_type=self.pixel_type
             )
         else:
             logging.debug("Camera is emulated. No parameters set.")
