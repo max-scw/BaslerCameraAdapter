@@ -350,7 +350,7 @@ async def take_single_photo(
     # hardcode acquisition mode to single frame
     camera_params_ = BaslerCameraParams(
         **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
-        pixel_type=cast_basler_pixe_type(photo_params.pixel_type),
+        pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
         acquisition_mode="SingleFrame"
     )
 
@@ -381,7 +381,7 @@ async def get_latest_photo(
     # hardcode acquisition mode to continuous
     camera_params_ = BaslerCameraParams(
         **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
-        pixel_type=cast_basler_pixe_type(photo_params.pixel_type),
+        pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
         acquisition_mode="Continuous"
     )
 
