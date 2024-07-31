@@ -144,7 +144,8 @@ def set_camera_parameter(
         transmission_type: str = None,
         destination_ip_address: str = None,
         destination_port: int = None,
-        acquisition_mode: str = "SingleFrame"  # "Continuous"
+        acquisition_mode: str = "SingleFrame",  # "Continuous"
+        pixel_type: int = pylon.PixelType_Mono8
 ) -> bool:
     """Set parameters if provided"""
     if not cam.IsOpen():
@@ -184,6 +185,10 @@ def set_camera_parameter(
     ## Set minimal (expected) compression rate so that the camera can increase the frame rate accordingly
     # self.camera.BslImageCompressionRatio.Value = 30
 
+    _pixel_format = cam.PixelFormat.GetValue()
+    if _pixel_format != pixel_type:
+        logging.debug(f"Setting Pixel Format to {pixel_type} (was {_pixel_format}).")
+        cam.PixelFormat.SetValue(pixel_type)
     return True
 
 
