@@ -135,10 +135,10 @@ class CameraThread(threading.Thread):
                 counter_new = self.latest_image["counter"]
                 if counter != counter_new:
                     logging.debug(f"Most recent image: {self.get_image_info()}.")
-                    return self.latest_image["image"]
+                    return self.latest_image["image"], self.latest_image["timestamp"]
 
         logging.debug(f"No image found: {self.counter} ({i}).")
-        return None
+        return None, None
 
 
 class TestThread(threading.Thread):
