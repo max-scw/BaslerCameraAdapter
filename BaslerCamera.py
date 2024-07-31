@@ -297,7 +297,7 @@ class BaslerCamera:
             converter = None
 
         self.converter = converter
-        logging.debug(f"Image format converter set to {convert_to}.")
+        logging.debug(f"Image format converter set to {convert_to_format}.")
 
         logging.debug(f"Init {self}")
 
