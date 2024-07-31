@@ -308,9 +308,9 @@ def take_picture(
             # start camera thread
             CAMERA_THREAD = CameraThread(
                 cam.camera,
-                pixel_type=cam.pixel_type,
                 dt_sleep=T_SLEEP,
-                timeout=photo_params.timeout
+                timeout=photo_params.timeout,
+                convert_to_format=camera_params.convert_to_format
             )
             CAMERA_THREAD.start()
             # wait for first image
