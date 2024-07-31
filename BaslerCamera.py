@@ -7,13 +7,14 @@ import re
 
 import logging
 
-from typing import Union
+from typing import Union, Literal
 
 from utils_env_vars import set_env_variable
 
-
 re_pixel_type = re.compile(r"(pylon\.)?(PixelType_)?[a-zA-Z]\w+", re.ASCII | re.IGNORECASE)
 re_pixel_type_prefix = re.compile(r"PixelType_", re.ASCII | re.IGNORECASE)
+
+
 def cast_basler_pixe_type(pixel_type: str) -> int:
     """
     Casts strings representing a Basler pixel type into their corresponding integer code.
@@ -115,7 +116,8 @@ def get_device_info(device: Union[pylon.InstantCamera, pylon.DeviceInfo]) -> dic
     elif isinstance(device, pylon.DeviceInfo):
         device_info = device
     else:
-        raise TypeError(f"Unexpected input type {type(device)}. An 'InstantCamera' or 'DeviceInfo' object was expected.")
+        raise TypeError(
+            f"Unexpected input type {type(device)}. An 'InstantCamera' or 'DeviceInfo' object was expected.")
 
     _, keys = device_info.GetPropertyNames()
 
@@ -135,7 +137,7 @@ def get_parameter(cam: pylon.InstantCamera) -> dict:
         "Destination Port": cam.StreamGrabber.DestinationPort.GetValue(),
         "Driver Type": cam.StreamGrabber.Type.GetValue(),
         "Acquisition Mode": cam.AcquisitionMode.GetValue(),
-        }
+    }
     return info
 
 
@@ -148,6 +150,10 @@ def set_camera_parameter(
         pixel_type: int = pylon.PixelType_Mono8
 ) -> bool:
     """Set parameters if provided"""
+    logging.debug(f"set_camera_parameter(cam, transmission_type={transmission_type}, "
+                  f"destination_ip_address={destination_ip_address}, destination_port={destination_port},"
+                  f"acquisition_mode={acquisition_mode}, pixel_type={pixel_type})")
+
     if not cam.IsOpen():
         raise Exception("Open camera first.")
 
@@ -260,7 +266,8 @@ class BaslerCamera:
             destination_ip_address: str = None,
             destination_port: int = None,
             acquisition_mode: str = "SingleFrame",
-            pixel_type: int = pylon.PixelType_Undefined
+            pixel_type: int = pylon.PixelType_Undefined,
+            convert_to_format: Literal["RGB", "BGR", "Mono", None] = "Mono"
     ) -> None:
         self.serial_number = serial_number
         self.ip_address = ip_address
@@ -271,16 +278,26 @@ class BaslerCamera:
         self.destination_port = destination_port
         self.acquisition_mode = acquisition_mode
         self.pixel_type = pixel_type
+        self.convert_to_format = convert_to_format
         self.camera = None
 
         # build image converter
-        if self.pixel_type == pylon.PixelType_Undefined:
-            converter = None
-        else:
+        if convert_to_format:
             converter = pylon.ImageFormatConverter()
-            converter.OutputPixelFormat = self.pixel_type
+            if convert_to_format == "Mono":
+                converter.OutputPixelFormat = pylon.PixelType_Mono8
+            elif convert_to_format == "RGB":
+                converter.OutputPixelFormat = pylon.PixelType_RGB8packed
+            elif convert_to_format == "BGR":
+                converter.OutputPixelFormat = pylon.PixelType_BGR8packed
+            else:
+                raise ValueError(f"Unrecognized convert_to: {convert_to_format}")
             converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
+        else:
+            converter = None
+
         self.converter = converter
+        logging.debug(f"Image format converter set to {convert_to}.")
 
         logging.debug(f"Init {self}")
 
@@ -402,7 +419,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s [%(levelname)s] %(message)s",
-#        handlers=[logging.StreamHandler(sys.stdout)],
+        #        handlers=[logging.StreamHandler(sys.stdout)],
     )
     # Create camera instance with IP address
     camera = BaslerCamera(

@@ -14,6 +14,8 @@ class BaslerCameraSettings(BaseModel):
     destination_ip_address: Optional[str] = None
     destination_port: Optional[Annotated[int, Field(strict=False, le=653535, ge=0)]] = None
 
+    convert_to_format: Literal["RGB", "BGR", "Mono", None] = None
+
 
 class BaslerCameraParams(BaslerCameraSettings):
     pixel_type: Optional[int] = -1
