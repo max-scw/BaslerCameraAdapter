@@ -38,7 +38,9 @@ from typing import Union
 # store time stamp to display the startup time at default entry point
 DATETIME_INIT = datetime.now()
 
-T_SLEEP = 1 / get_logging_level("FRAMES_PER_SECOND", 10)
+T_SLEEP = 1 / get_env_variable("FRAMES_PER_SECOND", 10)
+PIXEL_TYPE = get_env_variable("PIXEL_TYPE", None)
+
 
 # setup level
 log_file = get_env_variable("LOGFILE", None)
@@ -231,7 +233,10 @@ def process_input_variables(camera_params: BaslerCameraParams, photo_params: Pho
     if camera_params.subnet_mask:
         camera_params.subnet_mask = camera_params.subnet_mask.strip("'").strip('"')
 
-    logging.debug(f"Pixel type: {camera_params.pixel_type}")
+    logging.debug(f"Pixel type: {camera_params.pixel_type}, PIXEL_TYPE={PIXEL_TYPE}")
+    if (camera_params.pixel_type == -1) and PIXEL_TYPE:
+        camera_params.pixel_type = PIXEL_TYPE
+
     if isinstance(camera_params.pixel_type, str):
         camera_params.pixel_type = cast_basler_pixe_type(camera_params.pixel_type)
         logging.debug(f"Converted pixel type: {camera_params.pixel_type}")
