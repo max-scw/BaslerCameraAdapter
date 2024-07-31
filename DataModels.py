@@ -107,14 +107,11 @@ class BaslerCameraRequest(BaslerCameraSettings):
     ]] = "Undefined"
 
 
-
 class PhotoParams(BaseModel):
-    exposure_time_microseconds: Optional[int] = 10000
-    timeout: Optional[int] = 1000  # milli seconds
+    exposure_time_microseconds: Optional[Annotated[int, Field(strict=False, ge=500)]] = 10000
+    timeout: Optional[Annotated[int, Field(strict=False, ge=200)]] = 1000  # milli seconds
 
     emulate_camera: bool = False
     # image
     format: Optional[str] = "jpeg"
-    quality: Optional[Annotated[int, Field(strict=False,  le=100)]] = 85
-
-
+    quality: Optional[Annotated[int, Field(strict=False,  le=100, ge=10)]] = 85
