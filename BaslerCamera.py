@@ -256,6 +256,32 @@ def take_picture(
     return img
 
 
+def build_image_format_converter(
+        convert_to_format: Literal["RGB", "BGR", "Mono", "null"] = "null"
+) -> Union[pylon.ImageFormatConverter, None]:
+    # build image converter
+    logging.debug(f"Setting image format converter to {convert_to_format}.")
+    converter = None
+    if (convert_to_format is not None) and (convert_to_format.lower() != "null"):
+        try:
+            converter = pylon.ImageFormatConverter()
+            if convert_to_format == "Mono":
+                converter.OutputPixelFormat = pylon.PixelType_Mono8
+            elif convert_to_format == "RGB":
+                converter.OutputPixelFormat = pylon.PixelType_RGB8packed
+            elif convert_to_format == "BGR":
+                converter.OutputPixelFormat = pylon.PixelType_BGR8packed
+            else:
+                raise ValueError(f"Unrecognized convert_to: {convert_to_format}")
+            converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
+            # Sets the alignment of the bits in the target pixel type if the target bit depth is greater than
+            # the source bit depth, e.g., if you are converting from a 10-bit to a 16-bit format.
+
+        except Exception as ex:
+            logging.error(f"Setting up an Image Format Converter failed with {ex}. Proceeding without a converter.")
+    return converter
+
+
 class BaslerCamera:
     def __init__(
             self,
@@ -268,7 +294,7 @@ class BaslerCamera:
             destination_port: int = None,
             acquisition_mode: str = "SingleFrame",
             pixel_type: int = pylon.PixelType_Undefined,
-            convert_to_format: Literal["RGB", "BGR", "Mono", None] = "Mono"
+            convert_to_format: Literal["RGB", "BGR", "Mono", "null"] = "Mono"
     ) -> None:
         self.serial_number = serial_number
         self.ip_address = ip_address
@@ -279,28 +305,9 @@ class BaslerCamera:
         self.destination_port = destination_port
         self.acquisition_mode = acquisition_mode
         self.pixel_type = pixel_type
-        self.convert_to_format = convert_to_format
         self.camera = None
 
-        # build image converter
-        logging.debug(f"Setting image format converter to {convert_to_format}.")
-        converter = None
-        if (convert_to_format is not None) and (convert_to_format.lower() != "null"):
-            try:
-                converter = pylon.ImageFormatConverter()
-                if convert_to_format == "Mono":
-                    converter.OutputPixelFormat = pylon.PixelType_Mono8
-                elif convert_to_format == "RGB":
-                    converter.OutputPixelFormat = pylon.PixelType_RGB8packed
-                elif convert_to_format == "BGR":
-                    converter.OutputPixelFormat = pylon.PixelType_BGR8packed
-                else:
-                    raise ValueError(f"Unrecognized convert_to: {convert_to_format}")
-                converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
-            except Exception as ex:
-                logging.error(f"Setting up an Image Format Converter failed with {ex}. Proceeding without a converter.")
-
-        self.converter = converter
+        self.converter = build_image_format_converter(convert_to_format)
 
         logging.debug(f"Init {self}")
 

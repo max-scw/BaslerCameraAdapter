@@ -5,28 +5,27 @@ from pypylon import pylon
 import logging
 from datetime import datetime
 
-from BaslerCamera import create_camera, get_image, set_exposure_time, get_image
+from BaslerCamera import set_exposure_time, get_image, build_image_format_converter
 
 from time import sleep
 
-from typing import Union, Tuple, Dict, Any
+from typing import Union, Tuple, Dict, Any, Literal
 
 
 class CameraThread(threading.Thread):
     def __init__(
             self,
             cam: pylon.InstantCamera,
-            pixel_type: int = pylon.PixelType_Undefined,
             dt_sleep: float = 0.01,  # Set CPU to sleep to avoid excessive usage
             timeout: int = 1000,  # milli seconds
-            exposure_time_microseconds: int = None
+            exposure_time_microseconds: int = None,
+            convert_to_format: Literal["RGB", "BGR", "Mono", "null"] = "Mono"
     ):
         # threading.Thread.__init__(self)
         super().__init__()
 
         # store input variables
         self.camera = cam
-        self.pixel_type = pixel_type
         self.dt_sleep = dt_sleep if dt_sleep > 0 else 0.01
         self.timeout = timeout if timeout > 500 else 500
 
@@ -41,16 +40,7 @@ class CameraThread(threading.Thread):
         # local variables
         self.latest_image = None
         # build image converter
-        if self.pixel_type == pylon.PixelType_Undefined:
-            converter = None
-        else:
-            converter = pylon.ImageFormatConverter()
-            converter.OutputPixelFormat = self.pixel_type
-            converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
-            # Sets the alignment of the bits in the target pixel type if the target bit depth is greater than
-            # the source bit depth, e.g., if you are converting from a 10-bit to a 16-bit format.
-
-        self.converter = converter
+        self.converter = build_image_format_converter(convert_to_format)
 
         # process input
         if not self.camera.IsOpen():
