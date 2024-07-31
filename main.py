@@ -317,7 +317,7 @@ def take_picture(
             sleep(max(((photo_params.exposure_time_microseconds + 42000) / 1e6, 0.1, T_SLEEP)))
 
         # get image
-        image_array, timestamp = CAMERA_THREAD.get_latest_image()
+        image_array, timestamp = CAMERA_THREAD.get_image()
     else:
         image_array = cam.take_photo(photo_params.exposure_time_microseconds)
     t.append(("take photo", default_timer()))
