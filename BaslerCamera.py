@@ -195,6 +195,7 @@ def set_camera_parameter(
     if pixel_type and (_pixel_format != pixel_type):
         logging.debug(f"Setting Pixel Format to {pixel_type} (was {_pixel_format}).")
         cam.PixelFormat.SetValue(pixel_type)
+
     return True
 
 

@@ -23,7 +23,7 @@ from datetime import datetime
 import logging
 
 # custom packages
-from BaslerCamera import BaslerCamera, cast_basler_pixe_type
+from BaslerCamera import BaslerCamera
 from BaslerCameraThread import CameraThread
 from utils_env_vars import get_env_variable, get_logging_level
 
@@ -234,12 +234,8 @@ def process_input_variables(camera_params: BaslerCameraParams, photo_params: Pho
         camera_params.subnet_mask = camera_params.subnet_mask.strip("'").strip('"')
 
     logging.debug(f"Pixel type: {camera_params.pixel_type}, PIXEL_TYPE={PIXEL_TYPE}")
-    if (camera_params.pixel_type == -1) and PIXEL_TYPE:
+    if (camera_params.pixel_type.lower() == "undefined") and PIXEL_TYPE:
         camera_params.pixel_type = PIXEL_TYPE
-
-    if isinstance(camera_params.pixel_type, str):
-        camera_params.pixel_type = cast_basler_pixe_type(camera_params.pixel_type)
-        logging.debug(f"Converted pixel type: {camera_params.pixel_type}")
 
     image_format = photo_params.format.strip(".")
     if image_format.lower() == "jpg":
@@ -349,8 +345,7 @@ async def take_single_photo(
 ):
     # hardcode acquisition mode to single frame
     camera_params_ = BaslerCameraParams(
-        **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
-        pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
+        **camera_params.dict(),
         acquisition_mode="SingleFrame"
     )
 
@@ -380,8 +375,7 @@ async def get_latest_photo(
 ):
     # hardcode acquisition mode to continuous
     camera_params_ = BaslerCameraParams(
-        **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
-        pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
+        **camera_params.dict(),
         acquisition_mode="Continuous"
     )
 
