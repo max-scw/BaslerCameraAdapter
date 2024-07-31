@@ -194,7 +194,7 @@ def set_camera_parameter(
     _pixel_format = cam.PixelFormat.GetValue()
     if pixel_type and (_pixel_format != pixel_type):
         logging.debug(f"Setting Pixel Format to {pixel_type} (was {_pixel_format}).")
-        cam.PixelFormat.SetValue(pixel_type)
+        cam.PixelFormat.SetIntValue(pixel_type)
 
     return True
 
@@ -283,7 +283,9 @@ class BaslerCamera:
         self.camera = None
 
         # build image converter
-        if convert_to_format:
+        if (convert_to_format.lower() == "null") or (convert_to_format is None):
+            converter = None
+        else:
             converter = pylon.ImageFormatConverter()
             if convert_to_format == "Mono":
                 converter.OutputPixelFormat = pylon.PixelType_Mono8
@@ -294,8 +296,6 @@ class BaslerCamera:
             else:
                 raise ValueError(f"Unrecognized convert_to: {convert_to_format}")
             converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
-        else:
-            converter = None
 
         self.converter = converter
         logging.debug(f"Image format converter set to {convert_to_format}.")
