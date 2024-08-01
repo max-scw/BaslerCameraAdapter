@@ -29,7 +29,6 @@ from utils_env_vars import get_env_variable, get_logging_level
 
 from DataModels import (
     BaslerCameraSettings,
-    BaslerCameraRequest,
     BaslerCameraParams,
     PhotoParams
 )
@@ -344,13 +343,11 @@ def take_picture(
 
 @app.get(ENTRYPOINT_TAKE_PHOTO)
 async def take_single_photo(
-        camera_params: BaslerCameraRequest = Depends(),
+        camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
 ):
     # hardcode acquisition mode to single frame
     camera_params_ = BaslerCameraParams(
-        # **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
-        # pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
         **camera_params.dict(),
         acquisition_mode="SingleFrame"
     )
@@ -376,13 +373,11 @@ def get_camera_info(
 
 @app.get(ENTRYPOINT_GET_IMAGE)
 async def get_latest_photo(
-        camera_params: BaslerCameraRequest = Depends(),
+        camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
 ):
     # hardcode acquisition mode to continuous
     camera_params_ = BaslerCameraParams(
-        # **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
-        # pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
         **camera_params.dict(),
         acquisition_mode="Continuous"
     )
@@ -424,8 +419,6 @@ def return_test_image():
 
 
 if __name__ == "__main__":
-    # set_env_variable("TEST_IMAGE_PATH", "test_images")  # FIXME: for testing only
-
     # get logger
     logger = logging.getLogger("uvicorn")
     logger.setLevel(LOG_LEVEL)
@@ -435,7 +428,4 @@ if __name__ == "__main__":
     try:
         uvicorn.run(app=app, port=5051, log_level=LOG_LEVEL)
     except:
-        logging.info("Stopping camera thread...")
-        if CAMERA_THREAD is not None:
-            CAMERA_THREAD.stop()
-            CAMERA_THREAD.join()
+        close_cameras()

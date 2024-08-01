@@ -130,6 +130,7 @@ def get_device_info(device: Union[pylon.InstantCamera, pylon.DeviceInfo]) -> dic
 
 
 def get_parameter(cam: pylon.InstantCamera) -> dict:
+    """Reads parameters from the camera and returns them as a dictionary"""
     if not cam.IsOpen():
         raise Exception("Open camera first.")
 
@@ -139,6 +140,7 @@ def get_parameter(cam: pylon.InstantCamera) -> dict:
         "Destination Port": cam.StreamGrabber.DestinationPort.GetValue(),
         "Driver Type": cam.StreamGrabber.Type.GetValue(),
         "Acquisition Mode": cam.AcquisitionMode.GetValue(),
+        "Pixel Format": cam.PixelFormat.GetValue()
     }
     return info
 
@@ -202,6 +204,7 @@ def set_camera_parameter(
 
 
 def set_exposure_time(cam: pylon.InstantCamera, exposure_time_microseconds: int = None) -> float:
+    """sets the exposure time of a Basler camera object"""
     # set time how long the camera sensor is exposed to light
     _exposure_time = cam.ExposureTimeAbs.GetValue()
     if (exposure_time_microseconds and
@@ -216,6 +219,7 @@ def set_exposure_time(cam: pylon.InstantCamera, exposure_time_microseconds: int 
 
 
 def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Union[np.ndarray, None]:
+    """"""
     img = None
     if grab_result.GrabSucceeded():
         # Convert the grabbed image to PIL Image object
@@ -223,10 +227,11 @@ def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Unio
             img = grab_result.GetArray()
         else:
             img = converter.Convert(grab_result).GetArray()
-        grab_result.Release()
     else:
-        raise RuntimeError("Failed to grab an image.")
+        raise logging.error("Failed to grab an image.")
+    # release object
     grab_result.Release()
+
     logging.debug(f"Get image: {img.shape if isinstance(img, np.ndarray) else img}")
     return img
 
@@ -310,8 +315,9 @@ class BaslerCamera:
         self.acquisition_mode = acquisition_mode
         self.pixel_type = pixel_type
         self.convert_to_format = convert_to_format
+        # initialize camera attribute
         self.camera = None
-
+        # build converter
         self.converter = build_image_format_converter(convert_to_format)
 
         logging.debug(f"Init {self}")
@@ -417,7 +423,12 @@ class BaslerCamera:
         if not self.camera.IsOpen():
             self.camera.Open()
 
-        return take_picture(self.camera, exposure_time_microseconds, timeout_milliseconds=self.timeout)
+        return take_picture(
+            self.camera,
+            exposure_time_microseconds,
+            timeout_milliseconds=self.timeout,
+            converter=self.converter
+        )
 
     def video_stream(self):
         # create camara object if necessary

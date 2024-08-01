@@ -90,6 +90,7 @@ OutputImageFormat = Literal["RGB", "BGR", "Mono", "null"]
 AcquisitionMode = Literal["SingleFrame", "Continuous"]
 TransmissionType = Literal["Unicast", "Multicast", "Broadcast"]
 
+
 class BaslerCameraSettings(BaseModel):
     serial_number: Optional[int] = None
     ip_address: Optional[str] = None
@@ -104,13 +105,7 @@ class BaslerCameraSettings(BaseModel):
 
 
 class BaslerCameraParams(BaslerCameraSettings):
-    # pixel_type: Optional[int] = -1
     acquisition_mode: Optional[AcquisitionMode] = "SingleFrame"
-
-
-class BaslerCameraRequest(BaslerCameraSettings):
-    # pixel_type: Optional[PixelType]
-    pass
 
 
 class PhotoParams(BaseModel):
