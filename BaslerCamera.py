@@ -288,7 +288,7 @@ def build_image_format_converter(
 
 class BaslerCamera:
     def __init__(
-            self,
+            self,# *BaslerCameraParams
             serial_number: int = None,
             ip_address: str = None,
             subnet_mask: str = None,
@@ -309,6 +309,7 @@ class BaslerCamera:
         self.destination_port = destination_port
         self.acquisition_mode = acquisition_mode
         self.pixel_type = pixel_type
+        self.convert_to_format = convert_to_format
         self.camera = None
 
         self.converter = build_image_format_converter(convert_to_format)
