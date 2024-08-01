@@ -67,7 +67,7 @@ ENTRYPOINT_TAKE_PHOTO = ENTRYPOINT_BASLER_SINGLE_FRAME + "/take-photo"
 ENTRYPOINT_CAMERA_INFO = ENTRYPOINT_BASLER_SINGLE_FRAME + "/get-camera-info"
 ENTRYPOINT_BASLER_CONTINUOUS_FRAME = ENTRYPOINT_BASLER + "/continuous-acquisition"
 ENTRYPOINT_GET_IMAGE = ENTRYPOINT_BASLER_CONTINUOUS_FRAME + "/get-image"
-ENTRYPOINT_CLOSE = ENTRYPOINT_BASLER_CONTINUOUS_FRAME + "/close"
+ENTRYPOINT_BASLER_CLOSE = ENTRYPOINT_BASLER + "/close"
 
 # set up fastAPI
 title = "BaslerCameraAdapter"
@@ -383,17 +383,22 @@ async def get_latest_photo(
     camera_params_ = BaslerCameraParams(
         # **{ky: vl for ky, vl in camera_params.dict().items() if ky != "pixel_type"},
         # pixel_type=cast_basler_pixe_type(camera_params.pixel_type),
-        **camera_params.doct(),
+        **camera_params.dict(),
         acquisition_mode="Continuous"
     )
 
     return take_picture(camera_params_, photo_params)
 
 
-@app.get(ENTRYPOINT_CLOSE)
-def close_camera_thread():
+@app.get(ENTRYPOINT_BASLER_CLOSE)
+def close_cameras():
+    global CAMERA
+    if (CAMERA is not None) and CAMERA.camera.isOpen():
+        logging.debug("Camera was open.")
+        CAMERA.disconnect()
+
     global CAMERA_THREAD
-    if CAMERA_THREAD is not None:
+    if (CAMERA_THREAD is not None) and CAMERA_THREAD.is_alive():
         logging.debug("Camera thread was open.")
         stop_thread(CAMERA_THREAD)
     return True
