@@ -9,7 +9,9 @@ import logging
 
 from typing import Union, Literal
 
+from DataModels import PixelType, OutputImageFormat, AcquisitionMode
 from utils_env_vars import set_env_variable
+
 
 re_pixel_type = re.compile(r"(pylon\.)?(PixelType_)?[a-zA-Z]\w+", re.ASCII | re.IGNORECASE)
 re_pixel_type_prefix = re.compile(r"PixelType_", re.ASCII | re.IGNORECASE)
@@ -146,8 +148,8 @@ def set_camera_parameter(
         transmission_type: str = None,
         destination_ip_address: str = None,
         destination_port: int = None,
-        acquisition_mode: str = "SingleFrame",  # "Continuous"
-        pixel_type: int = pylon.PixelType_Mono8
+        acquisition_mode: AcquisitionMode = "SingleFrame",  # "Continuous"
+        pixel_type: PixelType = "Undefined"
 ) -> bool:
     """Set parameters if provided"""
     logging.debug(f"set_camera_parameter(cam, transmission_type={transmission_type}, "
@@ -191,10 +193,10 @@ def set_camera_parameter(
     ## Set minimal (expected) compression rate so that the camera can increase the frame rate accordingly
     # self.camera.BslImageCompressionRatio.Value = 30
 
-    _pixel_format = cam.PixelFormat.GetValue()
+    _pixel_format: str = cam.PixelFormat.GetValue()
     if pixel_type and (_pixel_format != pixel_type):
         logging.debug(f"Setting Pixel Format to {pixel_type} (was {_pixel_format}).")
-        cam.PixelFormat.SetIntValue(pixel_type)
+        cam.PixelFormat.SetValue(pixel_type)
 
     return True
 
@@ -225,6 +227,7 @@ def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Unio
     else:
         raise RuntimeError("Failed to grab an image.")
     grab_result.Release()
+    logging.debug(f"Get image: {img.shape if isinstance(img, np.ndarray) else img}")
     return img
 
 
@@ -273,6 +276,7 @@ def build_image_format_converter(
                 converter.OutputPixelFormat = pylon.PixelType_BGR8packed
             else:
                 raise ValueError(f"Unrecognized convert_to: {convert_to_format}")
+
             converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
             # Sets the alignment of the bits in the target pixel type if the target bit depth is greater than
             # the source bit depth, e.g., if you are converting from a 10-bit to a 16-bit format.
@@ -292,9 +296,9 @@ class BaslerCamera:
             transmission_type: str = "Unicast",
             destination_ip_address: str = None,
             destination_port: int = None,
-            acquisition_mode: str = "SingleFrame",
-            pixel_type: int = pylon.PixelType_Undefined,
-            convert_to_format: Literal["RGB", "BGR", "Mono", "null"] = "Mono"
+            acquisition_mode: AcquisitionMode = "SingleFrame",
+            pixel_type: PixelType = "Undefined",
+            convert_to_format: OutputImageFormat = "null"
     ) -> None:
         self.serial_number = serial_number
         self.ip_address = ip_address

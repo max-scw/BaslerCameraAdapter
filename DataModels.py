@@ -2,26 +2,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import Annotated
 from typing import Optional, Union, Literal
 
-
-class BaslerCameraSettings(BaseModel):
-    serial_number: Optional[int] = None
-    ip_address: Optional[str] = None
-    subnet_mask: Optional[str] = None
-
-    transmission_type: Optional[Literal["Unicast", "Multicast", "Broadcast"]] = None
-    destination_ip_address: Optional[str] = None
-    destination_port: Optional[Annotated[int, Field(strict=False, le=653535, ge=0)]] = None
-
-    convert_to_format: Literal["RGB", "BGR", "Mono", "null"] = "null"
-
-
-class BaslerCameraParams(BaslerCameraSettings):
-    pixel_type: Optional[int] = -1
-    acquisition_mode: Optional[Literal["Continuous", "SingleFrame"]] = "SingleFrame"
-
-
-class BaslerCameraRequest(BaslerCameraSettings):
-    pixel_type: Optional[Literal[
+PixelType = Literal[
         'BGR10V1packed',
         'BGR10V2packed',
         'BGR10packed',
@@ -104,7 +85,32 @@ class BaslerCameraRequest(BaslerCameraSettings):
         'YUV422planar',
         'YUV444packed',
         'YUV444planar'
-    ]] = "Undefined"
+    ]
+OutputImageFormat = Literal["RGB", "BGR", "Mono", "null"]
+AcquisitionMode = Literal["SingleFrame", "Continuous"]
+TransmissionType = Literal["Unicast", "Multicast", "Broadcast"]
+
+class BaslerCameraSettings(BaseModel):
+    serial_number: Optional[int] = None
+    ip_address: Optional[str] = None
+    subnet_mask: Optional[str] = None
+
+    transmission_type: Optional[TransmissionType] = "Unicast"
+    destination_ip_address: Optional[str] = None
+    destination_port: Optional[Annotated[int, Field(strict=False, le=653535, ge=0)]] = None
+
+    convert_to_format: OutputImageFormat
+    pixel_type: Optional[PixelType]
+
+
+class BaslerCameraParams(BaslerCameraSettings):
+    # pixel_type: Optional[int] = -1
+    acquisition_mode: Optional[AcquisitionMode] = "SingleFrame"
+
+
+class BaslerCameraRequest(BaslerCameraSettings):
+    # pixel_type: Optional[PixelType]
+    pass
 
 
 class PhotoParams(BaseModel):
