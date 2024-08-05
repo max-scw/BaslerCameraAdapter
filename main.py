@@ -402,7 +402,7 @@ async def get_latest_photo(
 @app.get(ENTRYPOINT_BASLER_CLOSE)
 def close_cameras():
     global CAMERA
-    if isinstance(CAMERA, BaslerCamera) and CAMERA.camera.isOpen():
+    if isinstance(CAMERA, BaslerCamera) and CAMERA.camera.IsOpen():
         logging.debug("Camera was open.")
         CAMERA.disconnect()
 
