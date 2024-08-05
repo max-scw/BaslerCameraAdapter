@@ -100,8 +100,8 @@ class BaslerCameraSettings(BaseModel):
     destination_ip_address: Optional[str] = None
     destination_port: Optional[Annotated[int, Field(strict=False, le=653535, ge=0)]] = None
 
-    convert_to_format: OutputImageFormat
-    pixel_type: Optional[PixelType]
+    convert_to_format: Optional[OutputImageFormat] = "null"
+    pixel_type: Optional[PixelType] = "Undefined"
 
 
 class BaslerCameraParams(BaslerCameraSettings):
