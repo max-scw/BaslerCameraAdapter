@@ -196,7 +196,7 @@ def set_camera_parameter(
     # self.camera.BslImageCompressionRatio.Value = 30
 
     _pixel_format: str = cam.PixelFormat.GetValue()
-    if pixel_type and (_pixel_format != pixel_type):
+    if pixel_type and (_pixel_format != pixel_type) and (pixel_type.lower() != "undefined"):
         logging.debug(f"Setting Pixel Format to {pixel_type} (was {_pixel_format}).")
         cam.PixelFormat.SetValue(pixel_type)
 
