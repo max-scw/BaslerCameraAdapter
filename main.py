@@ -39,6 +39,7 @@ DATETIME_INIT = datetime.now()
 
 T_SLEEP = 1 / get_env_variable("FRAMES_PER_SECOND", 10)
 PIXEL_TYPE = get_env_variable("PIXEL_TYPE", None)
+CONVERT_TO_FORMAT = get_env_variable("CONVERT_TO_FORMAT", None)
 
 
 # setup level
@@ -155,7 +156,7 @@ def stop_thread(thread) -> bool:
     return True
 
 
-def create_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
+def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
     # get local logger + set logging level
     logging.getLogger().setLevel(LOG_LEVEL)
     t1 = default_timer()
@@ -236,6 +237,10 @@ def process_input_variables(camera_params: BaslerCameraParams, photo_params: Pho
     if (camera_params.pixel_type == "Undefined") and PIXEL_TYPE:
         camera_params.pixel_type = PIXEL_TYPE
 
+    logging.debug(f"Pixel type: {camera_params.convert_to_format}, CONVERT_TO_FORMAT={CONVERT_TO_FORMAT}")
+    if (camera_params.convert_to_format == "null") and CONVERT_TO_FORMAT:
+        camera_params.convert_to_format = CONVERT_TO_FORMAT
+
     # if isinstance(camera_params.pixel_type, str):
     #     camera_params.pixel_type = cast_basler_pixe_type(camera_params.pixel_type)
     #     logging.debug(f"Converted pixel type: {camera_params.pixel_type}")
@@ -255,7 +260,7 @@ def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> 
     # extract parameter for a CameraParameter object
     t0 = default_timer()
     cam_params = BaslerCameraParams(**{ky: getattr(camera_params, ky) for ky in BaslerCameraParams.model_fields})
-    cam = create_basler_camera(cam_params)
+    cam = get_basler_camera(cam_params)
 
     if photo_params.emulate_camera:
         p2img = get_test_image()
@@ -361,11 +366,20 @@ def get_camera_info(
         ip_address: str = None,
         subnet_mask: str = None
 ):
-    cam = create_basler_camera(
+    add_params = dict()
+    global CAMERA
+    if CAMERA is not None:
+        add_params = {
+            ky: getattr(CAMERA, ky) for ky in BaslerCameraParams.model_fields
+                      if ky not in ["serial_number", "ip_address", "subnet_mask"]
+        }
+
+    cam = get_basler_camera(
         BaslerCameraParams(
             serial_number=serial_number,
             ip_address=ip_address,
-            subnet_mask=subnet_mask
+            subnet_mask=subnet_mask,
+            **add_params
         )
     )
     return cam.get_camera_info()
@@ -388,14 +402,16 @@ async def get_latest_photo(
 @app.get(ENTRYPOINT_BASLER_CLOSE)
 def close_cameras():
     global CAMERA
-    if (CAMERA is not None) and CAMERA.camera.isOpen():
+    if isinstance(CAMERA, BaslerCamera) and CAMERA.camera.isOpen():
         logging.debug("Camera was open.")
         CAMERA.disconnect()
 
     global CAMERA_THREAD
-    if (CAMERA_THREAD is not None) and CAMERA_THREAD.is_alive():
+    if isinstance(CAMERA, CameraThread) and CAMERA_THREAD.is_alive():
         logging.debug("Camera thread was open.")
         stop_thread(CAMERA_THREAD)
+        # reset camera thread
+        CAMERA_THREAD = None
     return True
 
 
