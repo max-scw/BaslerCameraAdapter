@@ -41,8 +41,6 @@ from typing import Union
 DATETIME_INIT = datetime.now()
 
 T_SLEEP = 1 / get_env_variable("FRAMES_PER_SECOND", 10)
-PIXEL_TYPE = get_env_variable("PIXEL_TYPE", None)
-CONVERT_TO_FORMAT = get_env_variable("CONVERT_TO_FORMAT", None)
 
 # create global camera instance
 CAMERA: BaslerCamera = None
@@ -259,18 +257,6 @@ def process_input_variables(camera_params: BaslerCameraParams, photo_params: Pho
     if camera_params.subnet_mask:
         camera_params.subnet_mask = camera_params.subnet_mask.strip("'").strip('"')
 
-    logging.debug(f"Pixel type: {camera_params.pixel_type}, PIXEL_TYPE={PIXEL_TYPE}")
-    if (camera_params.pixel_type == "Undefined") and PIXEL_TYPE:
-        camera_params.pixel_type = PIXEL_TYPE
-
-    logging.debug(f"Pixel type: {camera_params.convert_to_format}, CONVERT_TO_FORMAT={CONVERT_TO_FORMAT}")
-    if (camera_params.convert_to_format == "null") and CONVERT_TO_FORMAT:
-        camera_params.convert_to_format = CONVERT_TO_FORMAT
-
-    # if isinstance(camera_params.pixel_type, str):
-    #     camera_params.pixel_type = cast_basler_pixe_type(camera_params.pixel_type)
-    #     logging.debug(f"Converted pixel type: {camera_params.pixel_type}")
-
     image_format = photo_params.format.strip(".")
     if image_format.lower() == "jpg":
         image_format = "jpeg"
@@ -437,7 +423,7 @@ def close_cameras():
     global CAMERA_THREAD
     if isinstance(CAMERA, CameraThread) and CAMERA_THREAD.is_alive():
         logging.debug("Camera thread was open.")
-        stop_thread(CAMERA_THREAD)
+        stop_camera_thread()
         # reset camera thread
         CAMERA_THREAD = None
     return True
