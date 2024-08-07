@@ -46,7 +46,7 @@ The default values to interact with a camera are configurable at startup by the 
 | EMULATE_CAMERA         | bool      |                                                                      |
 | IMAGE_FORMAT           | string    |                                                                      |
 | IMAGE_QUALITY          | integer   | in [10, 100]; in percent                                             |
-
+| FRAMES_PER_SECOND      | integer   | for continuous acquisition only                                      |
 
 Note: The configuration is done once when loading the data models (the module [DataModels.py](DataModels.py)), i.e. at startup of the uvicorn server.
 

@@ -11,6 +11,8 @@ from random import shuffle
 import io
 from PIL import Image
 
+from pypylon.pylon import TimeoutException
+
 from time import sleep
 
 # versions / info
@@ -30,7 +32,8 @@ from utils import get_env_variable, get_logging_level
 from DataModels import (
     BaslerCameraSettings,
     BaslerCameraParams,
-    PhotoParams
+    PhotoParams,
+    OutputImageFormat
 )
 from typing import Union
 
@@ -41,6 +44,9 @@ T_SLEEP = 1 / get_env_variable("FRAMES_PER_SECOND", 10)
 PIXEL_TYPE = get_env_variable("PIXEL_TYPE", None)
 CONVERT_TO_FORMAT = get_env_variable("CONVERT_TO_FORMAT", None)
 
+# create global camera instance
+CAMERA: BaslerCamera = None
+CAMERA_THREAD: CameraThread = None
 
 # setup level
 log_file = get_env_variable("LOGFILE", None)
@@ -145,14 +151,34 @@ async def home():
 
 
 # ----- Interact with the Basler camera
-# create global camera instance
-CAMERA: BaslerCamera = None
-CAMERA_THREAD: CameraThread = None
 
 
-def stop_thread(thread) -> bool:
-    thread.stop()
-    thread.join()
+def stop_camera_thread() -> bool:
+    CAMERA_THREAD.stop()
+    CAMERA_THREAD.join()
+    # reset
+    # CAMERA_THREAD = None
+    return True
+
+
+def start_camera_thread(
+        camera,
+        timeout: int,
+        output_image_format: OutputImageFormat,
+        exposure_time_microseconds: int = 0
+) -> bool:
+    global CAMERA_THREAD
+
+    CAMERA_THREAD = CameraThread(
+        camera,
+        dt_sleep=T_SLEEP,
+        timeout=timeout,
+        convert_to_format=output_image_format
+    )
+    CAMERA_THREAD.start()
+    # wait for first image
+    sleep(max(((exposure_time_microseconds / 1e6 + 0.05), 0.1, T_SLEEP)))
+
     return True
 
 
@@ -254,8 +280,6 @@ def process_input_variables(camera_params: BaslerCameraParams, photo_params: Pho
 
 
 def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> BaslerCamera:
-    # # get local logger + set logging level
-    # logging.getLogger().setLevel(LOG_LEVEL)
 
     # extract parameter for a CameraParameter object
     t0 = default_timer()
@@ -299,31 +323,33 @@ def take_picture(
         start_thread = False
 
         global CAMERA_THREAD
-        if CAMERA_THREAD is None:
+        if (CAMERA_THREAD is None) or \
+            (isinstance(CAMERA_THREAD, CameraThread) and not CAMERA_THREAD.is_alive()):
             start_thread = True
-        elif (cam.camera != CAMERA_THREAD.camera) or (not CAMERA_THREAD.is_alive()):
-            start_thread = True
+        elif cam.camera != CAMERA_THREAD.camera:
             logging.debug(f"Restart new camera thread ({cam})")
+            start_thread = True
             # stop camera thread
-            stop_thread(CAMERA_THREAD)
+            stop_camera_thread()
 
         if start_thread:
             logging.debug(f"Starting new camera thread with {cam}.")
             # start camera thread
-            CAMERA_THREAD = CameraThread(
+            start_camera_thread(
                 cam.camera,
-                dt_sleep=T_SLEEP,
-                timeout=photo_params.timeout,
-                convert_to_format=camera_params.convert_to_format
+                photo_params.timeout,
+                output_image_format=camera_params.convert_to_format,
+                exposure_time_microseconds=photo_params.exposure_time_microseconds
             )
-            CAMERA_THREAD.start()
-            # wait for first image
-            sleep(max(((photo_params.exposure_time_microseconds + 42000) / 1e6, 0.1, T_SLEEP)))
 
         # get image
-        image_array, timestamp = CAMERA_THREAD.get_image()
+        try:
+            image_array, timestamp = CAMERA_THREAD.get_image()
+        except TimeoutException:
+            stop_camera_thread()
     else:
         image_array = cam.take_photo(photo_params.exposure_time_microseconds)
+
     t.append(("take photo", default_timer()))
 
     if image_array is None:
@@ -337,8 +363,10 @@ def take_picture(
     t.append(("Convert bytes to PIL image", default_timer()))
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-    logging.info(f"take_picture({camera_params}, {photo_params}) took {diff} ms "
-                 f"(total {(default_timer() - t0) * 1000:.4g} ms).")
+    logging.info(
+        f"take_picture({camera_params}, {photo_params}) took {diff} ms "
+        f"(total {(default_timer() - t0) * 1000:.4g} ms)."
+    )
 
     return Response(
         content=image_bytes,
@@ -371,7 +399,7 @@ def get_camera_info(
     if CAMERA is not None:
         add_params = {
             ky: getattr(CAMERA, ky) for ky in BaslerCameraParams.model_fields
-                      if ky not in ["serial_number", "ip_address", "subnet_mask"]
+            if ky not in ["serial_number", "ip_address", "subnet_mask"]
         }
 
     cam = get_basler_camera(
