@@ -31,6 +31,7 @@ The default values to interact with a camera are configurable at startup by the 
 | Environment variable   | data type | comment                                                              |
 |------------------------|-----------|----------------------------------------------------------------------|
 | PREFIX                 | string    | prefix of the environment variables                                  |
+| LOG_LEVEL              | string    | in ["DEBUG", "INFO", "WARNING", "ERROR", "FATAL"]                    |
 | SERIAL_NUMBER          | integer   |                                                                      |
 | IP_ADDRESS             | string    |                                                                      |
 | SUBNET_MASK            | string    |                                                                      |
@@ -41,10 +42,11 @@ The default values to interact with a camera are configurable at startup by the 
 | PIXEL_TYPE             | string    | see https://docs.baslerweb.com/pylonapi/net/T_Basler_Pylon_PixelType |
 | ACQUISITION_MODE       | string    | in ["SingleFrame", "Continuous"]                                     |
 | EXPOSURE_TIME          | integer   | > 500; in micro seconds                                              |
-| TIMEOUT                | integer   | > 200; in milli seconds                                              |                                                                   
+| TIMEOUT                | integer   | > 200; in milli seconds                                              |
 | EMULATE_CAMERA         | bool      |                                                                      |
 | IMAGE_FORMAT           | string    |                                                                      |
 | IMAGE_QUALITY          | integer   | in [10, 100]; in percent                                             |
+
 
 Note: The configuration is done once when loading the data models (the module [DataModels.py](DataModels.py)), i.e. at startup of the uvicorn server.
 
