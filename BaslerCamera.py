@@ -10,7 +10,7 @@ import logging
 from typing import Union, Literal
 
 from DataModels import PixelType, OutputImageFormat, AcquisitionMode
-from utils_env_vars import set_env_variable
+from utils import set_env_variable
 
 
 re_pixel_type = re.compile(r"(pylon\.)?(PixelType_)?[a-zA-Z]\w+", re.ASCII | re.IGNORECASE)

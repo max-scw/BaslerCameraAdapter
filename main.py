@@ -25,7 +25,7 @@ import logging
 # custom packages
 from BaslerCamera import BaslerCamera, cast_basler_pixe_type
 from BaslerCameraThread import CameraThread
-from utils_env_vars import get_env_variable, get_logging_level
+from utils import get_env_variable, get_logging_level
 
 from DataModels import (
     BaslerCameraSettings,

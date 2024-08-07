@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from utils_env_vars import get_env_variable, set_env_variable
+from utils import get_env_variable, set_env_variable
 from typing import Optional, Annotated, Literal, Any, Union, List
 
 # define new data types
