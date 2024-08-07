@@ -3,7 +3,7 @@ import os
 import re
 from ast import literal_eval
 
-from typing import List, Dict, Any, Union
+from typing import Union, List, Dict, Any, Union
 
 
 def camel_case_split(identifier):
@@ -11,8 +11,21 @@ def camel_case_split(identifier):
     return [m.group(0) for m in matches]
 
 
-def get_env_variable(key: str, default_value):
-    return cast(os.environ[key]) if key in os.environ else default_value
+def get_env_variable(key: Union[str, List[str]], default_value, check_for_prefix: bool = False) -> Any:
+
+    prefix = ""
+    if check_for_prefix and ("PREFIX" in os.environ):
+        prefix = f"{os.environ['PREFIX']}_"
+
+    if isinstance(key, str):
+        key = [key]
+
+    for ky in key:
+        # name of the environment variable to look for
+        nm = f"{prefix}{ky}"
+        if nm in os.environ:
+            return cast(os.environ[nm])
+    return default_value
 
 
 def get_environment_variables(prefix: str = None, with_prefix: bool = True) -> Dict[str, Any]:

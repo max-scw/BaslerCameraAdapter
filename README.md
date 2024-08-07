@@ -15,6 +15,7 @@ BaslerCameraAdapter
 +-- docs <- auxiliary files for documentation (basically screenshots)
 |-- BaslerCamera.py <- python code to interact with a Basler camera
 |-- BaslerCameraAdapter.Dockerfile  <- Dockerfile for camera service
+|-- BaslerCameraThread.py  <- enables for continuous image acqusition by camera threading
 |-- docker-compose.yml  <- exemplatory docker-compose call
 |-- LICENSE
 |-- main.py  <- fastAPI server to communicate with the Basler camera
@@ -22,6 +23,30 @@ BaslerCameraAdapter
 |-- requirements.txt  <- pip requirements
 |-- utils_env_vars.py <- helper functions that provide the ability to configure the server
 ```
+
+
+## Configuration
+The default values to interact with a camera are configurable at startup by the following environment variables:
+
+| Environment variable   | data type | comment                                                              |
+|------------------------|-----------|----------------------------------------------------------------------|
+| PREFIX                 | string    | prefix of the environment variables                                  |
+| SERIAL_NUMBER          | integer   |                                                                      |
+| IP_ADDRESS             | string    |                                                                      |
+| SUBNET_MASK            | string    |                                                                      |
+| TRANSMISSION_TYPE      | string    | in ["Unicast", "Multicast", "Broadcast"]                             |
+| DESTINATION_IP_ADDRESS | string    |                                                                      |
+| DESTINATION_PORT       | integer   | in [0, 653535]                                                       |
+| CONVERT_TO_FORMAT      | string    | in ["RGB", "BGR", "Mono", "null"]                                    |
+| PIXEL_TYPE             | string    | see https://docs.baslerweb.com/pylonapi/net/T_Basler_Pylon_PixelType |
+| ACQUISITION_MODE       | string    | in ["SingleFrame", "Continuous"]                                     |
+| EXPOSURE_TIME          | integer   | > 500; in micro seconds                                              |
+| TIMEOUT                | integer   | > 200; in milli seconds                                              |                                                                   
+| EMULATE_CAMERA         | bool      |                                                                      |
+| IMAGE_FORMAT           | string    |                                                                      |
+| IMAGE_QUALITY          | integer   | in [10, 100]; in percent                                             |
+
+Note: The configuration is done once when loading the data models (the module [DataModels.py](DataModels.py)), i.e. at startup of the uvicorn server.
 
 ## Usage
 The default entrypoint (`/`) provides basic information but rather just assures that the server is up.
