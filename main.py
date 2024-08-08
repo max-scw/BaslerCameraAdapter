@@ -33,14 +33,16 @@ from DataModels import (
     BaslerCameraSettings,
     BaslerCameraParams,
     PhotoParams,
-    OutputImageFormat
+    OutputImageFormat,
+    default_from_env
 )
 from typing import Union
 
 # store time stamp to display the startup time at default entry point
 DATETIME_INIT = datetime.now()
 
-T_SLEEP = 1 / get_env_variable("FRAMES_PER_SECOND", 10)
+T_SLEEP = 1 / get_env_variable("FRAMES_PER_SECOND", 10, check_for_prefix=True)
+PIXEL_TYPE = get_env_variable("PIXEL_TYPE", None, check_for_prefix=True)
 
 # create global camera instance
 CAMERA: BaslerCamera = None
@@ -257,6 +259,9 @@ def process_input_variables(camera_params: BaslerCameraParams, photo_params: Pho
     if camera_params.subnet_mask:
         camera_params.subnet_mask = camera_params.subnet_mask.strip("'").strip('"')
 
+    if (camera_params.pixel_type == "Undefined") and PIXEL_TYPE:
+        camera_params.pixel_type = PIXEL_TYPE
+
     image_format = photo_params.format.strip(".")
     if image_format.lower() == "jpg":
         image_format = "jpeg"
@@ -310,7 +315,7 @@ def take_picture(
 
         global CAMERA_THREAD
         if (CAMERA_THREAD is None) or \
-            (isinstance(CAMERA_THREAD, CameraThread) and not CAMERA_THREAD.is_alive()):
+                (isinstance(CAMERA_THREAD, CameraThread) and not CAMERA_THREAD.is_alive()):
             start_thread = True
         elif cam.camera != CAMERA_THREAD.camera:
             logging.debug(f"Restart new camera thread ({cam})")
@@ -343,6 +348,9 @@ def take_picture(
 
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
+    if photo_params.rotation_angle != 0:
+        im.rotate(angle=photo_params.rotation_angle, expand=photo_params.rotation_expand)
+
     with io.BytesIO() as buf:
         im.save(buf, format=photo_params.format, quality=photo_params.quality)
         image_bytes = buf.getvalue()
