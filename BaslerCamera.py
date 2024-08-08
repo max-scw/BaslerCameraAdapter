@@ -219,10 +219,10 @@ def set_exposure_time(cam: pylon.InstantCamera, exposure_time_microseconds: int 
 
 
 def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Union[np.ndarray, None]:
-    """"""
+    """Pylon grab result object to numpy.ndarray object like an image in OpenCV."""
     img = None
     if grab_result.GrabSucceeded():
-        # Convert the grabbed image to PIL Image object
+        # Convert the grabbed image to numpy.ndarray object
         if converter is None:
             img = grab_result.GetArray()
         else:
