@@ -2,14 +2,18 @@ import threading
 
 import numpy as np
 from pypylon import pylon
-import logging
 from datetime import datetime
-
-from BaslerCamera import set_exposure_time, get_image, build_image_format_converter
-
 from time import sleep
 
 from typing import Union, Tuple, Dict, Any, Literal
+
+from BaslerCamera import set_exposure_time, get_image, build_image_format_converter
+from DataModels import OutputImageFormat
+from utils import setup_logging
+
+
+# Setup logging
+logger = setup_logging(__name__)
 
 
 class CameraThread(threading.Thread):
@@ -19,7 +23,7 @@ class CameraThread(threading.Thread):
             dt_sleep: float = 0.01,  # Set CPU to sleep to avoid excessive usage
             timeout: int = 1000,  # milli seconds
             exposure_time_microseconds: int = None,
-            convert_to_format: Literal["RGB", "BGR", "Mono", "null"] = "Mono",
+            convert_to_format: OutputImageFormat = "Mono",
             max_retries: int = 3
     ):
         # threading.Thread.__init__(self)
@@ -47,12 +51,12 @@ class CameraThread(threading.Thread):
 
         # process input
         if not self.camera.IsOpen():
-            logging.info("Open camera.")
+            logger.info("Open camera.")
             self.camera.Open()
 
     def stop(self):
         """Stops the thread."""
-        logging.info("Stopping camera.")
+        logger.info("Stopping camera.")
         self.exit_event.set()
         self.camera.StopGrabbing()
         self.camera.Close()
@@ -72,7 +76,7 @@ class CameraThread(threading.Thread):
         """Continuously runs in the thread. Retrieves images from the Basler camera and stores them for later access."""
         # set camera to grabbing mode
         self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
-        logging.info("Start grabbing.")
+        logger.info("Start grabbing.")
 
         while not self.exit_event.is_set():
             self._counter += 1
@@ -85,7 +89,7 @@ class CameraThread(threading.Thread):
                     with self.lock:
                         timestamp = datetime.now()
                         self.latest_image = {"image": img, "timestamp": timestamp, "counter": self.counter}
-                        logging.debug(f"Image set as latest image at {timestamp.isoformat()}.")
+                        logger.debug(f"Image set as latest image at {timestamp.isoformat()}.")
                 grab_result.Release()
             sleep(self.dt_sleep)  # To avoid excessive CPU usage
 
@@ -96,17 +100,17 @@ class CameraThread(threading.Thread):
             try:
                 # Simulating device data processing
                 grab_result = self.camera.RetrieveResult(self.timeout, pylon.TimeoutHandling_ThrowException)
-                logging.debug(f"Grab result succeeded: {grab_result.GrabSucceeded() if grab_result else None}.")
+                logger.debug(f"Grab result succeeded: {grab_result.GrabSucceeded() if grab_result else None}.")
 
                 break  # Exit the loop if successful
             except pylon.TimeoutException as e:  # TimeoutError
                 retries += 1
                 wait_time = 0.01 * self._backoff_factor * retries
-                logging.warning(f"Timeout occurred: {e}. Retrying in {wait_time} seconds ...")
+                logger.warning(f"Timeout occurred: {e}. Retrying in {wait_time} seconds ...")
                 sleep(wait_time)
         else:
             msg = "Max retries reached. Unable to retrieve grab result."
-            logging.error(msg)
+            logger.error(msg)
             # TODO: stop thread?
             raise pylon.TimeoutException(msg)
         return grab_result
@@ -121,7 +125,7 @@ class CameraThread(threading.Thread):
 
     def get_latest_image(self) -> Tuple[Union[np.ndarray, None], Union[datetime, None]]:
         """Returns the currently stored image"""
-        logging.debug(f"Getting latest image: {self.get_image_info()} ({self.counter}).")
+        logger.debug(f"Getting latest image: {self.get_image_info()} ({self.counter}).")
 
         with self.lock:
             if self.latest_image is None:
@@ -133,7 +137,7 @@ class CameraThread(threading.Thread):
 
     def get_image(self, t_wait_min: float = 0.1):
         """Returns a new image"""
-        logging.debug(f"Get image: {self.get_image_info()}.")
+        logger.debug(f"Get image: {self.get_image_info()}.")
 
         # time to wait
         times = (self.dt_sleep, self.camera.ExposureTimeAbs.GetValue() / 1e6)
@@ -141,7 +145,7 @@ class CameraThread(threading.Thread):
         dt_max = max(times)
 
         n_max = int(dt_max // dt_min + 2)
-        logging.debug(f"Times: {times}, min: {dt_min}, max: {dt_max} | {n_max}")
+        logger.debug(f"Times: {times}, min: {dt_min}, max: {dt_max} | {n_max}")
 
         counter = -1
         for i in range(n_max):
@@ -153,8 +157,8 @@ class CameraThread(threading.Thread):
             if self.latest_image is not None:
                 counter_new = self.latest_image["counter"]
                 if counter != counter_new:
-                    logging.debug(f"Most recent image: {self.get_image_info()}.")
+                    logger.debug(f"Most recent image: {self.get_image_info()}.")
                     return self.latest_image["image"], self.latest_image["timestamp"]
 
-        logging.debug(f"No image found: {self.counter} ({i}).")
+        logger.debug(f"No image found: {self.counter} ({i}).")
         return None, None

@@ -1,9 +1,22 @@
 import logging
+import sys
 import os
 import re
 from ast import literal_eval
+import importlib.util
+from pathlib import Path
 
 from typing import Union, List, Dict, Any, Union
+
+
+def import_if_installed(library_name):
+    lib = None
+    if importlib.util.find_spec(library_name) is not None:
+        lib = importlib.import_module(library_name)
+        logging.debug(f"{library_name} is installed and has been imported.")
+    else:
+        logging.debug(f"{library_name} is not installed.")
+    return lib
 
 
 def camel_case_split(identifier):
@@ -103,3 +116,41 @@ def cast_logging_level(var: str, default: int = logging.INFO) -> int:
 
 def get_logging_level(key: str = "LOGGING_LEVEL", default: int = logging.INFO) -> int:
     return cast_logging_level(get_env_variable(key, default))
+
+
+def setup_logging(
+        name: str,
+        level: int = logging.INFO,
+        use_env_log_level: bool = True,
+        period_sec: int = 1
+) -> logging.Logger:
+
+    log_file = get_env_variable("LOGFILE", None)
+    log_level = get_logging_level("LOGGING_LEVEL", level) if use_env_log_level else level
+
+    # Setup logging
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)] + # Ensures logs are forwarded to Docker
+                 [logging.FileHandler(Path(log_file).with_suffix(".log"))] if log_file is not None else [],
+
+    )
+    # create file wide logger
+    logger_ = logging.getLogger(name)
+    # Add our filter
+    if import_if_installed("redis"):
+        # package log-rate-limit requires redis to be available
+        log_rate_limit = import_if_installed("log_rate_limit")
+        if log_rate_limit:
+            logger_.addFilter(log_rate_limit.StreamRateLimitFilter(period_sec=period_sec))
+
+    # first log message
+    logger_.info(f"Logging configured: level={log_level}, file={log_file}")
+
+    return logger_
+
+
+# Setup logging
+logger = setup_logging(__name__)
+

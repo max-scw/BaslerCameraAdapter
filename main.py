@@ -22,12 +22,11 @@ import sys
 # logging / timing
 from timeit import default_timer
 from datetime import datetime
-import logging
 
 # custom packages
 from BaslerCamera import BaslerCamera, cast_basler_pixe_type
 from BaslerCameraThread import CameraThread
-from utils import get_env_variable, get_logging_level
+from utils import get_env_variable, setup_logging, set_env_variable
 
 from DataModels import (
     BaslerCameraSettings,
@@ -48,20 +47,8 @@ PIXEL_TYPE = get_env_variable("PIXEL_TYPE", None, check_for_prefix=True)
 CAMERA: BaslerCamera = None
 CAMERA_THREAD: CameraThread = None
 
-# setup level
-log_file = get_env_variable("LOGFILE", None)
-LOG_LEVEL = get_logging_level("LOGGING_LEVEL", logging.DEBUG)
-
-# configure logging
-logging.basicConfig(
-    level=LOG_LEVEL,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)] +
-             [logging.FileHandler(Path(log_file).with_suffix(".log"))] if log_file is not None else [],
-)
-
-# first logging message
-logging.info(f"Logging configured: level={LOG_LEVEL}, file={log_file}")
+# Setup logging
+logger = setup_logging(__name__)
 
 # define endpoints
 ENTRYPOINT_TEST = "/test"
@@ -183,8 +170,6 @@ def start_camera_thread(
 
 
 def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
-    # get local logger + set logging level
-    logging.getLogger().setLevel(LOG_LEVEL)
     t1 = default_timer()
 
     # "load" global variable
@@ -200,28 +185,26 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
         if isinstance(CAMERA, BaslerCamera):
             CAMERA.disconnect()
         t2 = default_timer()
-        logging.debug(f"Disconnect ({isinstance(CAMERA, BaslerCamera)}) took {(t2 - t1) * 1000:.4g} ms")
+        logger.debug(f"Disconnect ({isinstance(CAMERA, BaslerCamera)}) took {(t2 - t1) * 1000:.4g} ms")
 
         # create new instance
         CAMERA = BaslerCamera(**params.dict())
         t3 = default_timer()
-        logging.debug(f"Creating BaslerCamera object took {(t3 - t2) * 1000:.4g} ms")
+        logger.debug(f"Creating BaslerCamera object took {(t3 - t2) * 1000:.4g} ms")
 
         # Connect to the camera
         CAMERA.connect()
         t4 = default_timer()
-        logging.debug(f"Connecting to camera took {(t4 - t3) * 1000:.4g} ms")
+        logger.debug(f"Connecting to camera took {(t4 - t3) * 1000:.4g} ms")
 
     return CAMERA
 
 
 def get_test_image() -> Union[Path, None]:
-    # get local logger + set logging level
-    logging.getLogger().setLevel(LOG_LEVEL)
 
     # get path to image or folder / name pattern
     image_path = get_env_variable("TEST_IMAGE_PATH", "/home/app/test")
-    logging.debug(f"Return test image: TEST_IMAGE_PATH={image_path}")
+    logger.debug(f"Return test image: TEST_IMAGE_PATH={image_path}")
 
     if image_path:
         if isinstance(image_path, list):
@@ -233,21 +216,20 @@ def get_test_image() -> Union[Path, None]:
             else:
                 images_ = image_path.glob(image_path.name)
         images = list(images_)
-        logging.debug(f"List of images: {', '.join([el.as_posix() for el in images])}")
+        logger.debug(f"List of images: {', '.join([el.as_posix() for el in images])}")
         # shuffle list
         shuffle(images)
         # return first image that exists
         for p2img in images:
             if p2img.is_file():
-                logging.debug(f"Return image: {p2img.as_posix()}")
+                logger.debug(f"Return image: {p2img.as_posix()}")
                 return p2img
     return None
 
 
 def process_input_variables(camera_params: BaslerCameraParams, photo_params: PhotoParams):
-    # # get local logger + set logging level
-    # logging.getLogger().setLevel(LOG_LEVEL)
-    logging.debug(f"Process input variables: camera={camera_params}, photo={photo_params}")
+
+    logger.debug(f"Process input variables: camera={camera_params}, photo={photo_params}")
 
     # add functionality to emulate a camera
     if photo_params.emulate_camera:
@@ -293,7 +275,7 @@ def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> 
             # set test picture to camera
             cam.set_test_picture(p2img)
 
-    logging.debug(f"Getting camera object took {(default_timer() - t0) * 1000:.4g} ms")
+    logger.debug(f"Getting camera object took {(default_timer() - t0) * 1000:.4g} ms")
     return cam
 
 
@@ -318,13 +300,13 @@ def take_picture(
                 (isinstance(CAMERA_THREAD, CameraThread) and not CAMERA_THREAD.is_alive()):
             start_thread = True
         elif cam.camera != CAMERA_THREAD.camera:
-            logging.debug(f"Restart new camera thread ({cam})")
+            logger.debug(f"Restart new camera thread ({cam})")
             start_thread = True
             # stop camera thread
             stop_camera_thread()
 
         if start_thread:
-            logging.debug(f"Starting new camera thread with {cam}.")
+            logger.debug(f"Starting new camera thread with {cam}.")
             # start camera thread
             start_camera_thread(
                 cam.camera,
@@ -357,7 +339,7 @@ def take_picture(
     t.append(("Convert bytes to PIL image", default_timer()))
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-    logging.info(
+    logger.info(
         f"take_picture({camera_params}, {photo_params}) took {diff} ms "
         f"(total {(default_timer() - t0) * 1000:.4g} ms)."
     )
@@ -425,12 +407,12 @@ async def get_latest_photo(
 def close_cameras():
     global CAMERA
     if isinstance(CAMERA, BaslerCamera) and CAMERA.camera.IsOpen():
-        logging.debug("Camera was open.")
+        logger.debug("Camera was open.")
         CAMERA.disconnect()
 
     global CAMERA_THREAD
     if isinstance(CAMERA, CameraThread) and CAMERA_THREAD.is_alive():
-        logging.debug("Camera thread was open.")
+        logger.debug("Camera thread was open.")
         stop_camera_thread()
         # reset camera thread
         CAMERA_THREAD = None
@@ -457,13 +439,13 @@ def return_test_image():
 
 
 if __name__ == "__main__":
-    # get logger
-    logger = logging.getLogger("uvicorn")
-    logger.setLevel(LOG_LEVEL)
-    logger.debug(f"logger.level={logger.level}")
 
-    logger.debug("====> Starting uvicorn server <====")
     try:
-        uvicorn.run(app=app, port=5051, log_level=LOG_LEVEL)
+        uvicorn.run(
+            app=app,
+            port=5051,
+            access_log=True,
+            log_config=None  # Uses the logging configuration in the application
+        )
     except:
         close_cameras()

@@ -5,12 +5,14 @@ from pathlib import Path
 
 import re
 
-import logging
-
 from typing import Union, Literal
 
 from DataModels import PixelType, OutputImageFormat, AcquisitionMode
-from utils import set_env_variable
+from utils import set_env_variable, setup_logging
+
+
+# Setup logging
+logger = setup_logging(__name__)
 
 
 re_pixel_type = re.compile(r"(pylon\.)?(PixelType_)?[a-zA-Z]\w+", re.ASCII | re.IGNORECASE)
@@ -90,25 +92,25 @@ def create_camera(
     t0 = default_timer()
     if ip_address:
         # Connect to the camera using IP address
-        logging.info(f"Connecting to the camera using IP address {ip_address} and subnet mask {subnet_mask}")
+        logger.info(f"Connecting to the camera using IP address {ip_address} and subnet mask {subnet_mask}")
         device = create_camera_with_ip_address(ip_address, subnet_mask)
     elif serial_number:
         # Connect to the camera using serial number
-        logging.info(f"Connect to the camera using serial number: {serial_number}")
+        logger.info(f"Connect to the camera using serial number: {serial_number}")
         cam_info = get_camera_by_serial_number(serial_number)
         device = pylon.TlFactory.GetInstance().CreateDevice(cam_info)
     else:
-        logging.info("Emulating a camera.")
+        logger.info("Emulating a camera.")
         set_env_variable("PYLON_CAMEMU", 1)  # set how many cameras should be emulated
         device = pylon.TlFactory.GetInstance().CreateFirstDevice()
 
     t1 = default_timer()
-    logging.debug(f"Getting camera device object took {(t1 - t0) * 1000:.4g} ms")
+    logger.debug(f"Getting camera device object took {(t1 - t0) * 1000:.4g} ms")
 
     # access / build the camera
     cam = pylon.InstantCamera(device)
     t2 = default_timer()
-    logging.debug(f"Creating a camera instance took {(t2 - t1) * 1000:.4g} ms")
+    logger.debug(f"Creating a camera instance took {(t2 - t1) * 1000:.4g} ms")
     return cam
 
 
@@ -154,7 +156,7 @@ def set_camera_parameter(
         pixel_type: PixelType = "Undefined"
 ) -> bool:
     """Set parameters if provided"""
-    logging.debug(f"set_camera_parameter(cam, transmission_type={transmission_type}, "
+    logger.debug(f"set_camera_parameter(cam, transmission_type={transmission_type}, "
                   f"destination_ip_address={destination_ip_address}, destination_port={destination_port},"
                   f"acquisition_mode={acquisition_mode}, pixel_type={pixel_type})")
 
@@ -164,7 +166,7 @@ def set_camera_parameter(
     # Transmission Type
     _transmission_type = cam.StreamGrabber.TransmissionType.GetValue()
     if transmission_type and (transmission_type != _transmission_type):
-        logging.debug(f"Setting Transmission Type to {transmission_type} (was {_transmission_type}).")
+        logger.debug(f"Setting Transmission Type to {transmission_type} (was {_transmission_type}).")
         cam.StreamGrabber.TransmissionType.SetValue(transmission_type)
         _transmission_type = transmission_type
 
@@ -173,19 +175,19 @@ def set_camera_parameter(
         # Destination IP address
         _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
         if destination_ip_address and (destination_ip_address != _destination_ip):
-            logging.debug(f"Setting Destination Address to {destination_ip_address} (was {_destination_ip}).")
+            logger.debug(f"Setting Destination Address to {destination_ip_address} (was {_destination_ip}).")
             cam.StreamGrabber.DestinationAddr.SetValue(destination_ip_address)
 
     # Destination Port
     _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
     if destination_port and (destination_port != _destination_port):
-        logging.debug(f"Setting Destination Port to {destination_port} (was {_destination_port}).")
+        logger.debug(f"Setting Destination Port to {destination_port} (was {_destination_port}).")
         cam.StreamGrabber.DestinationPort.SetValue(destination_port)
 
     # AcquisitionMode Mode
     _acquisition_mode = cam.AcquisitionMode.GetValue()
     if acquisition_mode and (transmission_type != _acquisition_mode):
-        logging.debug(f"Setting Acquisition Mode to {acquisition_mode} (was {_acquisition_mode}).")
+        logger.debug(f"Setting Acquisition Mode to {acquisition_mode} (was {_acquisition_mode}).")
         cam.AcquisitionMode.SetValue(acquisition_mode)
 
     # Bandwidth Optimization through compression. NOT AVAILABLE FOR ALL MODELS
@@ -197,7 +199,7 @@ def set_camera_parameter(
 
     _pixel_format: str = cam.PixelFormat.GetValue()
     if pixel_type and (_pixel_format != pixel_type) and (pixel_type.lower() != "undefined"):
-        logging.debug(f"Setting Pixel Format to {pixel_type} (was {_pixel_format}).")
+        logger.debug(f"Setting Pixel Format to {pixel_type} (was {_pixel_format}).")
         cam.PixelFormat.SetValue(pixel_type)
 
     return True
@@ -228,11 +230,11 @@ def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Unio
         else:
             img = converter.Convert(grab_result).GetArray()
     else:
-        raise logging.error("Failed to grab an image.")
+        raise logger.error("Failed to grab an image.")
     # release object
     grab_result.Release()
 
-    logging.debug(f"Get image: {img.shape if isinstance(img, np.ndarray) else img}")
+    logger.debug(f"Get image: {img.shape if isinstance(img, np.ndarray) else img}")
     return img
 
 
@@ -260,7 +262,7 @@ def take_picture(
     img = get_image(grab_result, converter)
 
     diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-    logging.debug(f"take_photo() execution timing: {diff} ms (total {(default_timer() - t0) * 1000:.4g} ms)")
+    logger.debug(f"take_photo() execution timing: {diff} ms (total {(default_timer() - t0) * 1000:.4g} ms)")
     return img
 
 
@@ -268,7 +270,7 @@ def build_image_format_converter(
         convert_to_format: Literal["RGB", "BGR", "Mono", "null"] = "null"
 ) -> Union[pylon.ImageFormatConverter, None]:
     # build image converter
-    logging.debug(f"Setting image format converter to {convert_to_format}.")
+    logger.debug(f"Setting image format converter to {convert_to_format}.")
     converter = None
     if (convert_to_format is not None) and (convert_to_format.lower() != "null"):
         try:
@@ -287,7 +289,7 @@ def build_image_format_converter(
             # the source bit depth, e.g., if you are converting from a 10-bit to a 16-bit format.
 
         except Exception as ex:
-            logging.error(f"Setting up an Image Format Converter failed with {ex}. Proceeding without a converter.")
+            logger.error(f"Setting up an Image Format Converter failed with {ex}. Proceeding without a converter.")
     return converter
 
 
@@ -320,7 +322,7 @@ class BaslerCamera:
         # build converter
         self.converter = build_image_format_converter(convert_to_format)
 
-        logging.debug(f"Init {self}")
+        logger.debug(f"Init {self}")
 
     def __repr__(self):
         keys = [
@@ -347,18 +349,18 @@ class BaslerCamera:
             subnet_mask=self.subnet_mask
         )
         t1 = default_timer()
-        logging.debug(f"Creating a camera took {(t1 - t0) * 1000:.4g} ms")
+        logger.debug(f"Creating a camera took {(t1 - t0) * 1000:.4g} ms")
 
         self.camera.Open()
         self.set_parameter()
         t2 = default_timer()
-        logging.info(f"{self}: {self.get_camera_info()} (total {(t2 - t0) * 1000:.4g} ms)")
+        logger.info(f"{self}: {self.get_camera_info()} (total {(t2 - t0) * 1000:.4g} ms)")
         return True
 
     def disconnect(self) -> bool:
         if self.camera is not None:
             self.camera.Close()
-            logging.debug("Camera disconnected.")
+            logger.debug("Camera disconnected.")
         return True
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -385,7 +387,7 @@ class BaslerCamera:
 
     def set_parameter(self) -> bool:
         if self.ip_address or self.serial_number:
-            logging.debug(
+            logger.debug(
                 f"Setting Parameter: transmission_type={self.transmission_type}, "
                 f"destination_ip_address={self.destination_ip_address}, "
                 f"destination_port={self.destination_port}"
@@ -399,13 +401,13 @@ class BaslerCamera:
                 pixel_type=self.pixel_type
             )
         else:
-            logging.debug("Camera is emulated. No parameters set.")
+            logger.debug("Camera is emulated. No parameters set.")
             return False
 
     def set_test_picture(self, path_to_image: Union[Path, str] = None) -> bool:
         if path_to_image and (Path(path_to_image).exists()):
             self.camera.ImageFilename.SetValue(Path(path_to_image).as_posix())
-            logging.debug(f"Test image of emulated camera was set to {self.camera.ImageFilename.GetValue()}.")
+            logger.debug(f"Test image of emulated camera was set to {self.camera.ImageFilename.GetValue()}.")
             # enable image file test pattern
             self.camera.ImageFileMode = "On"
             # disable test pattern [image file is "real-image"]
@@ -442,10 +444,10 @@ class BaslerCamera:
 
 # Example usage:
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.DEBUG,
+    logger.basicConfig(
+        level=logger.DEBUG,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        #        handlers=[logging.StreamHandler(sys.stdout)],
+        #        handlers=[logger.StreamHandler(sys.stdout)],
     )
     # Create camera instance with IP address
     camera = BaslerCamera(
