@@ -121,7 +121,7 @@ class ImageParams(BaseModel):
     format: Optional[str] = default_from_env("IMAGE_FORMAT", "jpeg")
     quality: Optional[
         Annotated[int, Field(strict=False, le=100, ge=10)]
-    ] = default_from_env("IMAGE_QUALITY", 1001)
+    ] = default_from_env("IMAGE_QUALITY", 100)
     # image processing: rotation
     rotation_angle: Optional[float] = default_from_env("IMAGE_ROTATION_ANGLE", 0)  # degree
     rotation_expand: Optional[bool] = False
