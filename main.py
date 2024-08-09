@@ -24,7 +24,7 @@ from timeit import default_timer
 from datetime import datetime
 
 # custom packages
-from BaslerCamera import BaslerCamera, cast_basler_pixe_type
+from BaslerCamera import BaslerCamera
 from BaslerCameraThread import CameraThread
 from utils import get_env_variable, setup_logging, set_env_variable
 
@@ -150,18 +150,11 @@ def stop_camera_thread() -> bool:
 
 def start_camera_thread(
         camera,
-        timeout: int,
-        output_image_format: OutputImageFormat,
         exposure_time_microseconds: int = 0
 ) -> bool:
     global CAMERA_THREAD
 
-    CAMERA_THREAD = CameraThread(
-        camera,
-        dt_sleep=T_SLEEP,
-        timeout=timeout,
-        convert_to_format=output_image_format
-    )
+    CAMERA_THREAD = CameraThread(camera, dt_sleep=T_SLEEP)
     CAMERA_THREAD.start()
     # wait for first image
     sleep(max(((exposure_time_microseconds / 1e6 + 0.05), 0.1, T_SLEEP)))
@@ -299,7 +292,7 @@ def take_picture(
         if (CAMERA_THREAD is None) or \
                 (isinstance(CAMERA_THREAD, CameraThread) and not CAMERA_THREAD.is_alive()):
             start_thread = True
-        elif cam.camera != CAMERA_THREAD.camera:
+        elif cam != CAMERA_THREAD.camera:
             logger.debug(f"Restart new camera thread ({cam})")
             start_thread = True
             # stop camera thread
@@ -308,12 +301,7 @@ def take_picture(
         if start_thread:
             logger.debug(f"Starting new camera thread with {cam}.")
             # start camera thread
-            start_camera_thread(
-                cam.camera,
-                photo_params.timeout,
-                output_image_format=camera_params.convert_to_format,
-                exposure_time_microseconds=photo_params.exposure_time_microseconds
-            )
+            start_camera_thread(cam, photo_params.exposure_time_microseconds)
 
         # get image
         try:
@@ -406,7 +394,7 @@ async def get_latest_photo(
 @app.get(ENTRYPOINT_BASLER_CLOSE)
 def close_cameras():
     global CAMERA
-    if isinstance(CAMERA, BaslerCamera) and CAMERA.camera.IsOpen():
+    if isinstance(CAMERA, BaslerCamera):
         logger.debug("Camera was open.")
         CAMERA.disconnect()
 

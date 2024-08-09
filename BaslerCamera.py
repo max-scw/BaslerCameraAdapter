@@ -5,9 +5,14 @@ from pathlib import Path
 
 import re
 
-from typing import Union, Literal, Any
+from typing import Union, Literal, Any, List
 
-from DataModels import PixelType, OutputImageFormat, AcquisitionMode
+from DataModels import (
+    PixelType,
+    OutputImageFormat,
+    AcquisitionMode,
+    TransmissionType
+)
 from utils import set_env_variable, setup_logging
 
 
@@ -156,79 +161,6 @@ def get_parameter(cam: pylon.InstantCamera) -> dict:
     return info
 
 
-def set_camera_parameter(
-        cam: pylon.InstantCamera,
-        transmission_type: str = None,
-        destination_ip_address: str = None,
-        destination_port: int = None,
-        acquisition_mode: AcquisitionMode = "SingleFrame",  # "Continuous"
-        pixel_type: PixelType = "Undefined"
-) -> bool:
-    """Set parameters if provided"""
-    logger.debug(f"set_camera_parameter(cam, transmission_type={transmission_type}, "
-                 f"destination_ip_address={destination_ip_address}, destination_port={destination_port},"
-                 f"acquisition_mode={acquisition_mode}, pixel_type={pixel_type})")
-
-    if not cam.IsOpen():
-        raise Exception("Open camera first.")
-
-    # Transmission Type
-    _transmission_type = cam.StreamGrabber.TransmissionType.GetValue()
-    if transmission_type and (transmission_type != _transmission_type):
-        logger.debug(f"Setting Transmission Type to {transmission_type} (was {_transmission_type}).")
-        cam.StreamGrabber.TransmissionType.SetValue(transmission_type)
-        _transmission_type = transmission_type
-
-    # parameter are only writable if transmission type is Multicast
-    if _transmission_type.lower() == "multicast":
-        # Destination IP address
-        _destination_ip = cam.StreamGrabber.DestinationAddr.GetValue()
-        if destination_ip_address and (destination_ip_address != _destination_ip):
-            logger.debug(f"Setting Destination Address to {destination_ip_address} (was {_destination_ip}).")
-            cam.StreamGrabber.DestinationAddr.SetValue(destination_ip_address)
-
-    # Destination Port
-    _destination_port = cam.StreamGrabber.DestinationPort.GetValue()
-    if destination_port and (destination_port != _destination_port):
-        logger.debug(f"Setting Destination Port to {destination_port} (was {_destination_port}).")
-        cam.StreamGrabber.DestinationPort.SetValue(destination_port)
-
-    # AcquisitionMode Mode
-    _acquisition_mode = cam.AcquisitionMode.GetValue()
-    if acquisition_mode and (transmission_type != _acquisition_mode):
-        logger.debug(f"Setting Acquisition Mode to {acquisition_mode} (was {_acquisition_mode}).")
-        cam.AcquisitionMode.SetValue(acquisition_mode)
-
-    # Bandwidth Optimization through compression. NOT AVAILABLE FOR ALL MODELS
-    ## Enable lossless compression
-    # self.camera.ImageCompressionMode.Value = "BaslerCompressionBeyond"
-    # self.camera.ImageCompressionRateOption.Value = "Lossless"
-    ## Set minimal (expected) compression rate so that the camera can increase the frame rate accordingly
-    # self.camera.BslImageCompressionRatio.Value = 30
-
-    _pixel_format: str = cam.PixelFormat.GetValue()
-    if pixel_type and (_pixel_format != pixel_type) and (pixel_type.lower() != "undefined"):
-        logger.debug(f"Setting Pixel Format to {pixel_type} (was {_pixel_format}).")
-        cam.PixelFormat.SetValue(pixel_type)
-
-    return True
-
-
-def set_exposure_time(cam: pylon.InstantCamera, exposure_time_microseconds: int = None) -> float:
-    """sets the exposure time of a Basler camera object"""
-    # set time how long the camera sensor is exposed to light
-    _exposure_time = cam.ExposureTimeAbs.GetValue()
-    if (exposure_time_microseconds and
-            (exposure_time_microseconds >= 100) and
-            (exposure_time_microseconds != _exposure_time)):
-        # set exposure time
-        cam.ExposureTimeAbs.SetValue(exposure_time_microseconds)
-
-    # convert exposure time from micro-seconds to milliseconds
-    t_expose_ms = (exposure_time_microseconds if exposure_time_microseconds is not None else _exposure_time) / 1000
-    return t_expose_ms
-
-
 def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Union[np.ndarray, None]:
     """Pylon grab result object to numpy.ndarray object like an image in OpenCV."""
     img = None
@@ -244,34 +176,6 @@ def get_image(grab_result, converter: pylon.ImageFormatConverter = None) -> Unio
     grab_result.Release()
 
     logger.debug(f"Get image: {img.shape if isinstance(img, np.ndarray) else img}")
-    return img
-
-
-def take_picture(
-        cam: pylon.InstantCamera,
-        exposure_time_microseconds: int = None,
-        timeout_milliseconds: int = 400,
-        converter: pylon.ImageFormatConverter = None
-):
-    t0 = default_timer()
-    t = [("start", default_timer())]
-
-    # set time how long the camera sensor is exposed to light
-    t_expose_ms = set_exposure_time(cam, exposure_time_microseconds)
-    t.append(("set exposure time", default_timer()))  # TIMING
-
-    # timeout should not be shorter than the exposure time or 11 ms
-    timeout = max((timeout_milliseconds, t_expose_ms + 1, 11))
-
-    # Wait for a grab result
-    t.append(("print info", default_timer()))  # TIMING
-    grab_result = cam.GrabOne(timeout)  # timeout in milliseconds
-    t.append(("grab image", default_timer()))  # TIMING
-
-    img = get_image(grab_result, converter)
-
-    diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
-    logger.debug(f"take_photo() execution timing: {diff} ms (total {(default_timer() - t0) * 1000:.4g} ms)")
     return img
 
 
@@ -320,16 +224,18 @@ class BaslerCamera:
         self.ip_address = ip_address
         self.subnet_mask = subnet_mask
         self.timeout = timeout if timeout else 1000
-        self.transmission_type = transmission_type
-        self.destination_ip_address = destination_ip_address
-        self.destination_port = destination_port
-        self.acquisition_mode = acquisition_mode
-        self.pixel_type = pixel_type
         self.convert_to_format = convert_to_format
-        # initialize camera attribute
-        self.camera = None
         # build converter
         self.converter = build_image_format_converter(convert_to_format)
+        # initialize camera attribute
+        self._camera = None
+        # properties
+
+        self._transmission_type = transmission_type
+        self._destination_ip_address = destination_ip_address
+        self._destination_port = destination_port
+        self._acquisition_mode = acquisition_mode
+        self._pixel_type = pixel_type
 
         logger.debug(f"Init {self}")
 
@@ -338,21 +244,36 @@ class BaslerCamera:
             "serial_number",
             "ip_address",
             "subnet_mask",
-            "pixel_type",
             "timeout",
-            "transmission_type",
-            "destination_ip_address",
-            "destination_port",
-            "acquisition_mode",
+            "_transmission_type",
+            "_destination_ip_address",
+            "_destination_port",
+            "_acquisition_mode",
+            "_pixel_type",
         ]
         params = {ky: getattr(self, ky) for ky in keys if getattr(self, ky)}
         text_input_params = ", ".join([f"{ky}={vl}" for ky, vl in params.items()])
         return f"BaslerCamera({text_input_params})"
 
-    def connect(self) -> bool:
-        # create camera
+    def open(self):
+        if self._camera is None:
+            raise Exception("No camera created yet")
+        else:
+            if not self._camera.IsOpen():
+                self._camera.Open()
+                logger.debug("Camera opened.")
+
+    def close(self):
+        if self._camera is not None:
+            if self._camera.IsGrabbing():
+                self._camera.StopGrabbing()
+            # close camera
+            self._camera.Close()
+            logger.debug("Camera closed.")
+
+    def create_camera(self):
         t0 = default_timer()
-        self.camera = create_camera(
+        self._camera = create_camera(
             serial_number=self.serial_number,
             ip_address=self.ip_address,
             subnet_mask=self.subnet_mask
@@ -360,24 +281,176 @@ class BaslerCamera:
         t1 = default_timer()
         logger.debug(f"Creating a camera took {(t1 - t0) * 1000:.4g} ms")
 
-        self.camera.Open()
-        self.set_parameter()
-        t2 = default_timer()
-        logger.info(f"{self}: {self.get_camera_info()} (total {(t2 - t0) * 1000:.4g} ms)")
+    def connect(self) -> bool:
+        self.create_camera()
+        self.open()
+
+        if not self.is_emulated:
+            # camera is not emulated
+            # set parameters
+            self.transmission_type = self._transmission_type
+            self.destination_ip_address = self._destination_ip_address
+            self.destination_port = self._destination_port
+            self.acquisition_mode = self._acquisition_mode
+            self.pixel_format = self._pixel_type
+
         return True
 
     def disconnect(self) -> bool:
-        if self.camera is not None:
-            self.camera.Close()
-            logger.debug("Camera disconnected.")
+        self.close()
+        logger.debug("Camera disconnected.")
         return True
 
+    def reconnect(self) -> bool:
+        self.close()
+        self.open()
+        return True
+
+    def start_grabbing(self, grab_strategy: int = pylon.GrabStrategy_LatestImageOnly):
+        """wraps the StartGrabbing method of a pylon.InstantCamera object"""
+        if not self.is_grabbing:
+            self._camera.StartGrabbing(grab_strategy)
+
+    def stop_grabbing(self):
+        """wraps the StopGrabbing method of a pylon.InstantCamera object"""
+        if self.is_grabbing:
+            self._camera.StopGrabbing()
+
+    @property
+    def is_grabbing(self) -> bool:
+        return self._camera.IsGrabbing()
+
+    def retrieve_result(self, timeout_handling: int = pylon.TimeoutHandling_ThrowException):
+        # TODO add retry strategy
+        return self._camera.RetrieveResult(self.timeout, timeout_handling)
+
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.disconnect()
+        self.close()
+
+    def __del__(self):
+        self.close()
+        # self.camera = None
+
+    @property
+    def is_emulated(self) -> bool:
+        """"""
+        return (self.serial_number is None) and (self.ip_address is None)
+
+    # exposure time
+    @property
+    def exposure_time(self):
+        """Gets the exposure time in micro-seconds"""
+        return self._camera.ExposureTime.GetValue()
+
+    @exposure_time.setter
+    def exposure_time(self, value: int):
+        """Sets the exposure time in micro-seconds"""
+        if not isinstance(value, int):
+            raise TypeError(f"Invalid exposure time type: {value} (micro-seconds). Must be an integer.")
+
+        if value != self.exposure_time:
+            self._camera.ExposureTime.SetValue(int(value))
+
+    # Transmission type
+    @property
+    def transmission_type(self) -> TransmissionType | None:
+        """Gets the transmission type value"""
+        if self.is_emulated:
+            return None
+        else:
+            self.open()
+            return self._camera.StreamGrabber.TransmissionType.GetValue()
+
+    @transmission_type.setter
+    def transmission_type(self, value: TransmissionType):
+        """Sets the transmission type of the camera"""
+        if not isinstance(value, str):
+            raise TypeError(f"Invalid transmission type: {value}. Must be an string.")
+
+        # self.open()
+        if value != self.transmission_type:
+            logger.debug(f"Setting Transmission Type to {value}.")
+            self._camera.StreamGrabber.TransmissionType.SetValue(value)
+
+    # Destination IP Address
+    @property
+    def destination_ip_address(self) -> str | None:
+        """Gets the destination IP address"""
+        if self.is_emulated:
+            return None
+        else:
+            self.open()
+            return self._camera.StreamGrabber.DestinationAddr.GetValue()
+
+    @destination_ip_address.setter
+    def destination_ip_address(self, value: str):
+        """Sets the value of the destination IP address. (ONLY if transmission type is Multicast)"""
+        if not isinstance(value, str):
+            raise TypeError(f"Invalid destination ip address: {value}. Must be an string.")
+
+        # parameter are only writable if transmission type is Multicast
+        if (self.transmission_type == "Multicast") and (value != self.destination_ip_address):
+            logger.debug(f"Setting Destination IP Address to {value}.")
+            self._camera.StreamGrabber.DestinationAddr.SetValue(value)
+        else:
+            raise Exception(f"Transmission type must be 'Multicast' to set a destination IP address"
+                            f" but was {self.transmission_type}.")
+
+    # Destination Port
+    @property
+    def destination_port(self) -> int | None:
+        """Gets the value of the destination port"""
+        if self.is_emulated:
+            return None
+        else:
+            self.open()
+            return self._camera.StreamGrabber.DestinationPort.GetValue()
+
+    @destination_port.setter
+    def destination_port(self, value: int):
+        """Sets the destination port"""
+        if not isinstance(value, int):
+            raise TypeError(f"Invalid destination port: {value}. Must be an integer.")
+
+        # self.open()
+        if value != self.destination_ip_address:
+            logger.debug(f"Setting Destination Port to {value}.")
+            self._camera.StreamGrabber.DestinationPort.SetValue(int(value))
+
+    # AcquisitionMode Mode
+    @property
+    def acquisition_mode(self) -> AcquisitionMode:
+        """Gets the current value of the acquisition mode"""
+        self.open()
+        return self._camera.AcquisitionMode.GetValue()
+
+    @acquisition_mode.setter
+    def acquisition_mode(self, value: AcquisitionMode):
+        # self.open()
+        if value != self.acquisition_mode:
+            logger.debug(f"Setting Acquisition Mode to {value}.")
+            self._camera.AcquisitionMode.SetValue(value)
+
+    # Pixel Format / Pixel Type
+    @property
+    def pixel_format(self) -> PixelType:
+        """Gets the current value of the pixel format"""
+        self.open()
+        return self._camera.PixelFormat.GetValue()
+
+    @pixel_format.setter
+    def pixel_format(self, value: PixelType):
+        """Sets the pixel format"""
+        if not isinstance(value, str):
+            raise TypeError(f"Invalid pixel type: {value}. Must be a string.")
+
+        if value != self.pixel_format:
+            logger.debug(f"Setting Pixel Format to {value}.")
+            self._camera.PixelFormat.SetValue(value)
 
     def get_camera_info(self) -> dict:
-        if self.camera:
-            cam_info = self.camera.GetDeviceInfo()
+        if self._camera:
+            cam_info = self._camera.GetDeviceInfo()
             info = {
                 "Name": cam_info.GetModelName(),
                 "IP": cam_info.GetIpAddress(),
@@ -387,77 +460,55 @@ class BaslerCamera:
             info = {"Error": "No camera created yet."}
         return info
 
-    def get_device_info(self) -> dict:
-        if self.camera:
-            device_info = get_device_info(self.camera)
-        else:
-            device_info = {"Error": "No camera created yet."}
-        return device_info
+    @property
+    def device_info(self) -> dict:
+        info = dict()
+        if self._camera:
+            device_info = self._camera.GetDeviceInfo()
 
-    def set_parameter(self) -> bool:
-        if self.ip_address or self.serial_number:
-            logger.debug(
-                f"Setting Parameter: transmission_type={self.transmission_type}, "
-                f"destination_ip_address={self.destination_ip_address}, "
-                f"destination_port={self.destination_port}"
-            )
-            return set_camera_parameter(
-                self.camera,
-                transmission_type=self.transmission_type,
-                destination_ip_address=self.destination_ip_address,
-                destination_port=self.destination_port,
-                acquisition_mode=self.acquisition_mode,
-                pixel_type=self.pixel_type
-            )
-        else:
-            logger.debug("Camera is emulated. No parameters set.")
-            return False
+            # create dictionary from properties
+            _, keys = device_info.GetPropertyNames()
+
+            for ky in keys:
+                _, info[ky] = device_info.GetPropertyValue(ky)
+        return info
 
     def set_test_picture(self, path_to_image: Union[Path, str] = None) -> bool:
         if path_to_image and (Path(path_to_image).exists()):
-            self.camera.ImageFilename.SetValue(Path(path_to_image).as_posix())
-            logger.debug(f"Test image of emulated camera was set to {self.camera.ImageFilename.GetValue()}.")
+            self._camera.ImageFilename.SetValue(Path(path_to_image).as_posix())
+            logger.debug(f"Test image of emulated camera was set to {self._camera.ImageFilename.GetValue()}.")
             # enable image file test pattern
-            self.camera.ImageFileMode = "On"
+            self._camera.ImageFileMode = "On"
             # disable test pattern [image file is "real-image"]
-            self.camera.TestImageSelector = "Off"
+            self._camera.TestImageSelector = "Off"
             return True
         else:
             return False
 
     def take_photo(self, exposure_time_microseconds: int = None):
-        # create camara object if necessary
-        if self.camera is None:
-            self.connect()
-            # raise RuntimeError("Camera is not connected. Call connect() method first.")
+        t0 = default_timer()
 
-        if not self.camera.IsOpen():
-            self.camera.Open()
+        self.open()
 
-        return take_picture(
-            self.camera,
-            exposure_time_microseconds,
-            timeout_milliseconds=self.timeout,
-            converter=self.converter
-        )
+        # set time how long the camera sensor is exposed to light
+        self.exposure_time = exposure_time_microseconds
 
-    def video_stream(self):
-        # create camara object if necessary
-        if self.camera is None:
-            self.connect()
-            # raise RuntimeError("Camera is not connected. Call connect() method first.")
+        # timeout in milliseconds
+        if self.timeout < (exposure_time_microseconds / 1000):
+            raise ValueError(f"Exposure time is larger than the camera timeout.")
 
-        if not self.camera.IsOpen():
-            self.camera.Open()
+        # Wait for a grab result
+        grab_result = self._camera.GrabOne(self.timeout)  # timeout in milliseconds
+
+        img = get_image(grab_result, self.converter)
+
+        logger.debug(f"take_photo() took {(default_timer() - t0) * 1000:.4g} ms.")
+        return img
 
 
 # Example usage:
 if __name__ == "__main__":
-    logger.basicConfig(
-        level=logger.DEBUG,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        #        handlers=[logger.StreamHandler(sys.stdout)],
-    )
+
     # Create camera instance with IP address
     camera = BaslerCamera(
         # ip_address="192.168.10.5",
@@ -472,3 +523,4 @@ if __name__ == "__main__":
     for _ in range(10):
         photo = camera.take_photo(100)
     camera.disconnect()
+    camera.take_photo()

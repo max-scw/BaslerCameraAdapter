@@ -7,8 +7,7 @@ from time import sleep
 
 from typing import Union, Tuple, Dict, Any, Literal
 
-from BaslerCamera import set_exposure_time, get_image, build_image_format_converter
-from DataModels import OutputImageFormat
+from BaslerCamera import BaslerCamera, get_image
 from utils import setup_logging
 
 
@@ -19,11 +18,10 @@ logger = setup_logging(__name__)
 class CameraThread(threading.Thread):
     def __init__(
             self,
-            cam: pylon.InstantCamera,
+            cam: BaslerCamera,
             dt_sleep: float = 0.01,  # Set CPU to sleep to avoid excessive usage
-            timeout: int = 1000,  # milli seconds
+            # timeout: int = 1000,  # milliseconds
             exposure_time_microseconds: int = None,
-            convert_to_format: OutputImageFormat = "Mono",
             max_retries: int = 3
     ):
         # threading.Thread.__init__(self)
@@ -34,7 +32,7 @@ class CameraThread(threading.Thread):
         # store input variables
         self.camera = cam
         self.dt_sleep = dt_sleep if dt_sleep > 0 else 0.01
-        self.timeout = timeout if timeout > 500 else 500
+        # self.timeout = timeout if timeout > 500 else 500
 
         # threading
         # event object. This is more or less a flag
@@ -42,49 +40,42 @@ class CameraThread(threading.Thread):
         self.lock = threading.Lock()
         self._counter = 0
 
-        self.set_exposure_time(exposure_time_microseconds)
+        self.camera.exposure_time = exposure_time_microseconds
 
         # local variables
         self.latest_image = None
-        # build image converter
-        self.converter = build_image_format_converter(convert_to_format)
 
-        # process input
-        if not self.camera.IsOpen():
-            logger.info("Open camera.")
-            self.camera.Open()
+        self.camera.open()
 
     def stop(self):
         """Stops the thread."""
-        logger.info("Stopping camera.")
+        logger.info("Stopping camera thread.")
         self.exit_event.set()
-        self.camera.StopGrabbing()
-        self.camera.Close()
+        self.camera.close()
 
     @property
     def counter(self) -> int:
         """Accesses an internal integer variable that serves as counter."""
         return self._counter
 
-        # local functions
-    def set_exposure_time(self, exposure_time_microseconds: int = None):
-        """wraps function to local method"""
-        if isinstance(exposure_time_microseconds, int) and exposure_time_microseconds > 100:
-            set_exposure_time(self.camera, exposure_time_microseconds)
+    @counter.setter
+    def counter(self, value: int) -> None:
+        self._counter = value
 
+    # local functions
     def run(self):
         """Continuously runs in the thread. Retrieves images from the Basler camera and stores them for later access."""
         # set camera to grabbing mode
-        self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+        self.camera.start_grabbing(pylon.GrabStrategy_LatestImageOnly)
         logger.info("Start grabbing.")
 
         while not self.exit_event.is_set():
             self._counter += 1
-            if self.camera.IsGrabbing():
+            if self.camera.is_grabbing:
                 grab_result = self._retrieve_result()
 
                 if grab_result and grab_result.GrabSucceeded():
-                    img = get_image(grab_result, self.converter)
+                    img = get_image(grab_result, self.camera.converter)
 
                     with self.lock:
                         timestamp = datetime.now()
@@ -99,7 +90,7 @@ class CameraThread(threading.Thread):
         while retries < self._max_retries:
             try:
                 # Simulating device data processing
-                grab_result = self.camera.RetrieveResult(self.timeout, pylon.TimeoutHandling_ThrowException)
+                grab_result = self.camera.retrieve_result()
                 logger.debug(f"Grab result succeeded: {grab_result.GrabSucceeded() if grab_result else None}.")
 
                 break  # Exit the loop if successful
@@ -111,7 +102,7 @@ class CameraThread(threading.Thread):
         else:
             msg = "Max retries reached. Unable to retrieve grab result."
             logger.error(msg)
-            # TODO: stop thread?
+            self.stop()
             raise pylon.TimeoutException(msg)
         return grab_result
 
@@ -140,7 +131,7 @@ class CameraThread(threading.Thread):
         logger.debug(f"Get image: {self.get_image_info()}.")
 
         # time to wait
-        times = (self.dt_sleep, self.camera.ExposureTimeAbs.GetValue() / 1e6)
+        times = (self.dt_sleep, self.camera.exposure_time / 1e6)
         dt_min = max((min(times), t_wait_min))
         dt_max = max(times)
 
