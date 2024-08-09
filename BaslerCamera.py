@@ -5,7 +5,7 @@ from pathlib import Path
 
 import re
 
-from typing import Union, Literal
+from typing import Union, Literal, Any
 
 from DataModels import PixelType, OutputImageFormat, AcquisitionMode
 from utils import set_env_variable, setup_logging
@@ -131,6 +131,15 @@ def get_device_info(device: Union[pylon.InstantCamera, pylon.DeviceInfo]) -> dic
     return info
 
 
+def get_value_from_camera(cam: pylon.InstantCamera, name: str) -> Any:
+    try:
+        return getattr(cam, name).GetValue()
+    except AttributeError as ex:
+        Exception(f"{cam} does not has an attribute {name}. {ex}")
+    except pylon.AccessException as ex:
+        raise Exception(f"Attribute {name} could not be accessed. Is the camera connected? {ex}")
+
+
 def get_parameter(cam: pylon.InstantCamera) -> dict:
     """Reads parameters from the camera and returns them as a dictionary"""
     if not cam.IsOpen():
@@ -157,8 +166,8 @@ def set_camera_parameter(
 ) -> bool:
     """Set parameters if provided"""
     logger.debug(f"set_camera_parameter(cam, transmission_type={transmission_type}, "
-                  f"destination_ip_address={destination_ip_address}, destination_port={destination_port},"
-                  f"acquisition_mode={acquisition_mode}, pixel_type={pixel_type})")
+                 f"destination_ip_address={destination_ip_address}, destination_port={destination_port},"
+                 f"acquisition_mode={acquisition_mode}, pixel_type={pixel_type})")
 
     if not cam.IsOpen():
         raise Exception("Open camera first.")
