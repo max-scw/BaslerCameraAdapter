@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
 from utils import get_env_variable, set_env_variable
-from typing import Optional, Annotated, Literal, Any, Union, List
+from typing import Optional, Annotated, Literal, Any, Union, List, Tuple
 
 # define new data types
 PixelType = Literal[
@@ -116,7 +116,20 @@ class BaslerCameraParams(BaslerCameraSettings):
     acquisition_mode: Optional[AcquisitionMode] = default_from_env("ACQUISITION_MODE", "SingleFrame")
 
 
-class PhotoParams(BaseModel):
+class ImageParams(BaseModel):
+    # image format
+    format: Optional[str] = default_from_env("IMAGE_FORMAT", "jpeg")
+    quality: Optional[
+        Annotated[int, Field(strict=False, le=100, ge=10)]
+    ] = default_from_env("IMAGE_QUALITY", 1001)
+    # image processing: rotation
+    rotation_angle: Optional[float] = default_from_env("IMAGE_ROTATION_ANGLE", 0)  # degree
+    rotation_expand: Optional[bool] = False
+    # image processing: crop
+    # roi: Optional[Tuple[float, float, float, float]] = default_from_env("REGION_OF_INTEREST", None)
+
+
+class PhotoParams(ImageParams):
     exposure_time_microseconds: Optional[
             Annotated[int, Field(strict=False, ge=500)]
     ] = default_from_env(["EXPOSURE_TIME", "EXPOSURE_TIME_MICROSECONDS"], 1000)  # micro seconds
@@ -126,8 +139,3 @@ class PhotoParams(BaseModel):
     ] = default_from_env("TIMEOUT", 1000)  # milli seconds
 
     emulate_camera: bool = default_from_env("EMULATE_CAMERA", False)
-    # image
-    format: Optional[str] = default_from_env("IMAGE_FORMAT", "jpeg")
-    quality: Optional[
-        Annotated[int, Field(strict=False, le=100, ge=10)]
-    ] = default_from_env("IMAGE_QUALITY", 85)

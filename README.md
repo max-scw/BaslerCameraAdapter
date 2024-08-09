@@ -28,25 +28,28 @@ BaslerCameraAdapter
 ## Configuration
 The default values to interact with a camera are configurable at startup by the following environment variables:
 
-| Environment variable   | data type | comment                                                              |
-|------------------------|-----------|----------------------------------------------------------------------|
-| PREFIX                 | string    | prefix of the environment variables                                  |
-| LOG_LEVEL              | string    | in ["DEBUG", "INFO", "WARNING", "ERROR", "FATAL"]                    |
-| SERIAL_NUMBER          | integer   |                                                                      |
-| IP_ADDRESS             | string    |                                                                      |
-| SUBNET_MASK            | string    |                                                                      |
-| TRANSMISSION_TYPE      | string    | in ["Unicast", "Multicast", "Broadcast"]                             |
-| DESTINATION_IP_ADDRESS | string    |                                                                      |
-| DESTINATION_PORT       | integer   | in [0, 653535]                                                       |
-| CONVERT_TO_FORMAT      | string    | in ["RGB", "BGR", "Mono", "null"]                                    |
-| PIXEL_TYPE             | string    | see https://docs.baslerweb.com/pylonapi/net/T_Basler_Pylon_PixelType |
-| ACQUISITION_MODE       | string    | in ["SingleFrame", "Continuous"]                                     |
-| EXPOSURE_TIME          | integer   | > 500; in micro seconds                                              |
-| TIMEOUT                | integer   | > 200; in milli seconds                                              |
-| EMULATE_CAMERA         | bool      |                                                                      |
-| IMAGE_FORMAT           | string    |                                                                      |
-| IMAGE_QUALITY          | integer   | in [10, 100]; in percent                                             |
-| FRAMES_PER_SECOND      | integer   | for continuous acquisition only                                      |
+| Environment variable    | data type | comment                                                              |
+|-------------------------|-----------|----------------------------------------------------------------------|
+| PREFIX                  | string    | prefix of the environment variables                                  |
+| LOG_LEVEL               | string    | in ["DEBUG", "INFO", "WARNING", "ERROR", "FATAL"]                    |
+| SERIAL_NUMBER           | integer   |                                                                      |
+| IP_ADDRESS              | string    |                                                                      |
+| SUBNET_MASK             | string    |                                                                      |
+| TRANSMISSION_TYPE       | string    | in ["Unicast", "Multicast", "Broadcast"]                             |
+| DESTINATION_IP_ADDRESS  | string    |                                                                      |
+| DESTINATION_PORT        | integer   | in [0, 653535]                                                       |
+| CONVERT_TO_FORMAT       | string    | in ["RGB", "BGR", "Mono", "null"]                                    |
+| PIXEL_TYPE              | string    | see https://docs.baslerweb.com/pylonapi/net/T_Basler_Pylon_PixelType |
+| ACQUISITION_MODE        | string    | in ["SingleFrame", "Continuous"]                                     |
+| EXPOSURE_TIME           | integer   | > 500; in micro seconds                                              |
+| TIMEOUT                 | integer   | > 200; in milli seconds                                              |
+| EMULATE_CAMERA          | bool      |                                                                      |
+| IMAGE_FORMAT            | string    |                                                                      |
+| IMAGE_QUALITY           | integer   | in [10, 100]; in percent                                             |
+| IMAGE_ROTATION_ANGLE    | float     |                                                                      |
+| IMAGE_ROTATION_EXPAND   | bool      |                                                                      |
+| FRAMES_PER_SECOND       | integer   | for continuous acquisition only                                      |
+
 
 Note: The configuration is done once when loading the data models (the module [DataModels.py](DataModels.py)), i.e. at startup of the uvicorn server.
 
