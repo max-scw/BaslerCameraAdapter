@@ -217,7 +217,7 @@ class BaslerCamera:
             destination_ip_address: str = None,
             destination_port: int = None,
             acquisition_mode: AcquisitionMode = "SingleFrame",
-            pixel_type: PixelType = "Undefined",
+            pixel_format: PixelType = "Undefined",
             convert_to_format: OutputImageFormat = "null"
     ) -> None:
         self.serial_number = serial_number
@@ -235,7 +235,7 @@ class BaslerCamera:
         self._destination_ip_address = destination_ip_address
         self._destination_port = destination_port
         self._acquisition_mode = acquisition_mode
-        self._pixel_type = pixel_type
+        self._pixel_format = pixel_format
 
         logger.debug(f"Init {self}")
 
@@ -249,7 +249,7 @@ class BaslerCamera:
             "_destination_ip_address",
             "_destination_port",
             "_acquisition_mode",
-            "_pixel_type",
+            "_pixel_format",
         ]
         params = {ky: getattr(self, ky) for ky in keys if getattr(self, ky)}
         text_input_params = ", ".join([f"{ky}={vl}" for ky, vl in params.items()])
@@ -292,7 +292,7 @@ class BaslerCamera:
             self.destination_ip_address = self._destination_ip_address
             self.destination_port = self._destination_port
             self.acquisition_mode = self._acquisition_mode
-            self.pixel_format = self._pixel_type
+            self.pixel_format = self._pixel_format
 
         return True
 
@@ -333,23 +333,24 @@ class BaslerCamera:
 
     @property
     def is_emulated(self) -> bool:
-        """"""
+        """Flag whether a camera is emulated"""
         return (self.serial_number is None) and (self.ip_address is None)
 
     # exposure time
     @property
     def exposure_time(self):
         """Gets the exposure time in micro-seconds"""
-        return self._camera.ExposureTime.GetValue()
+        return self._camera.ExposureTimeAbs.GetValue()
 
     @exposure_time.setter
-    def exposure_time(self, value: int):
+    def exposure_time(self, value: float | None):
         """Sets the exposure time in micro-seconds"""
-        if not isinstance(value, int):
-            raise TypeError(f"Invalid exposure time type: {value} (micro-seconds). Must be an integer.")
+        if value:
+            if not isinstance(value, (float, int)):
+                raise TypeError(f"Invalid exposure time type: {value} (micro-seconds). Must be an Integer or Float.")
 
-        if value != self.exposure_time:
-            self._camera.ExposureTime.SetValue(int(value))
+            if value != self.exposure_time:
+                self._camera.ExposureTimeAbs.SetValue(float(value))
 
     # Transmission type
     @property
@@ -383,18 +384,19 @@ class BaslerCamera:
             return self._camera.StreamGrabber.DestinationAddr.GetValue()
 
     @destination_ip_address.setter
-    def destination_ip_address(self, value: str):
+    def destination_ip_address(self, value: str | None):
         """Sets the value of the destination IP address. (ONLY if transmission type is Multicast)"""
-        if not isinstance(value, str):
-            raise TypeError(f"Invalid destination ip address: {value}. Must be an string.")
+        if value:
+            if not isinstance(value, str):
+                raise TypeError(f"Invalid destination ip address: {value}. Must be an string.")
 
-        # parameter are only writable if transmission type is Multicast
-        if (self.transmission_type == "Multicast") and (value != self.destination_ip_address):
-            logger.debug(f"Setting Destination IP Address to {value}.")
-            self._camera.StreamGrabber.DestinationAddr.SetValue(value)
-        else:
-            raise Exception(f"Transmission type must be 'Multicast' to set a destination IP address"
-                            f" but was {self.transmission_type}.")
+            # parameter are only writable if transmission type is Multicast
+            if (self.transmission_type == "Multicast") and (value != self.destination_ip_address):
+                logger.debug(f"Setting Destination IP Address to {value}.")
+                self._camera.StreamGrabber.DestinationAddr.SetValue(value)
+            else:
+                raise Exception(f"Transmission type must be 'Multicast' to set a destination IP address"
+                                f" but was {self.transmission_type}.")
 
     # Destination Port
     @property
@@ -407,15 +409,16 @@ class BaslerCamera:
             return self._camera.StreamGrabber.DestinationPort.GetValue()
 
     @destination_port.setter
-    def destination_port(self, value: int):
+    def destination_port(self, value: int | None):
         """Sets the destination port"""
-        if not isinstance(value, int):
-            raise TypeError(f"Invalid destination port: {value}. Must be an integer.")
+        if value is not None:
+            if not isinstance(value, int):
+                raise TypeError(f"Invalid destination port: {value}. Must be an integer.")
 
-        # self.open()
-        if value != self.destination_ip_address:
-            logger.debug(f"Setting Destination Port to {value}.")
-            self._camera.StreamGrabber.DestinationPort.SetValue(int(value))
+            # self.open()
+            if value != self.destination_port:
+                logger.debug(f"Setting Destination Port to {value}.")
+                self._camera.StreamGrabber.DestinationPort.SetValue(int(value))
 
     # AcquisitionMode Mode
     @property
@@ -445,8 +448,11 @@ class BaslerCamera:
             raise TypeError(f"Invalid pixel type: {value}. Must be a string.")
 
         if value != self.pixel_format:
-            logger.debug(f"Setting Pixel Format to {value}.")
-            self._camera.PixelFormat.SetValue(value)
+            if value != "Undefined":
+                logger.debug(f"Setting Pixel Format to {value}.")
+                self._camera.PixelFormat.SetValue(value)
+            else:
+                logger.error("Pixel Format cannot be set to to 'Undefined'. Please choose a valid pixel format.")
 
     def get_camera_info(self) -> dict:
         if self._camera:
@@ -459,6 +465,14 @@ class BaslerCamera:
         else:
             info = {"Error": "No camera created yet."}
         return info
+
+    @property
+    def name(self) -> str | None:
+        info = self.get_camera_info()
+        if "Name" in info:
+            return "#".join((info["Name"], info["MAC"], info["IP"]))
+        else:
+            return None
 
     @property
     def device_info(self) -> dict:

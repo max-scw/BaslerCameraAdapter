@@ -105,11 +105,11 @@ class BaslerCameraSettings(BaseModel):
     transmission_type: Optional[TransmissionType] = default_from_env("TRANSMISSION_TYPE", "Unicast")
     destination_ip_address: Optional[str] = default_from_env("DESTINATION_IP_ADDRESS", None)
     destination_port: Optional[
-        Annotated[int, Field(strict=False, le=653535, ge=0)]
+        Annotated[int, Field(strict=False, le=653535, ge=26)]  # dynamic ports 49152-65535
     ] = default_from_env("DESTINATION_PORT", None)
 
     convert_to_format: Optional[OutputImageFormat] = default_from_env("CONVERT_TO_FORMAT", "null")
-    pixel_type: Optional[PixelType] = default_from_env("PIXEL_TYPE", "Undefined")
+    pixel_format: Optional[PixelType] = default_from_env("PIXEL_TYPE", "Undefined")
 
 
 class BaslerCameraParams(BaslerCameraSettings):

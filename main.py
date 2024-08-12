@@ -41,7 +41,7 @@ from typing import Union
 DATETIME_INIT = datetime.now()
 
 T_SLEEP = 1 / get_env_variable("FRAMES_PER_SECOND", 10, check_for_prefix=True)
-PIXEL_TYPE = get_env_variable("PIXEL_TYPE", None, check_for_prefix=True)
+PIXEL_FORMAT = get_env_variable("PIXEL_TYPE", None, check_for_prefix=True)
 
 # create global camera instance
 CAMERA: BaslerCamera = None
@@ -234,8 +234,8 @@ def process_input_variables(camera_params: BaslerCameraParams, photo_params: Pho
     if camera_params.subnet_mask:
         camera_params.subnet_mask = camera_params.subnet_mask.strip("'").strip('"')
 
-    if (camera_params.pixel_type == "Undefined") and PIXEL_TYPE:
-        camera_params.pixel_type = PIXEL_TYPE
+    if (camera_params.pixel_format == "Undefined") and PIXEL_FORMAT:
+        camera_params.pixel_format = PIXEL_FORMAT
 
     image_format = photo_params.format.strip(".")
     if image_format.lower() == "jpg":
