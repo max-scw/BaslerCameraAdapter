@@ -340,21 +340,19 @@ async def take_single_photo(
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
 def get_camera_info(
-    BaslerCameraAtom = Depends()
+    camera_params: BaslerCameraAtom = Depends()
 ):
     add_params = dict()
     global CAMERA
     if CAMERA is not None:
         add_params = {
             ky: getattr(CAMERA, ky) for ky in BaslerCameraParams.model_fields
-            if ky not in ["serial_number", "ip_address", "subnet_mask"]
+            if ky not in BaslerCameraAtom.model_fields
         }
 
     cam = get_basler_camera(
         BaslerCameraParams(
-            serial_number=serial_number,
-            ip_address=ip_address,
-            subnet_mask=subnet_mask,
+            **camera_params.dict(),
             **add_params
         )
     )
