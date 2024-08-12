@@ -97,11 +97,13 @@ def default_from_env(key: Union[str, List[str]], default: Any) -> Any:
     return get_env_variable(key, default, check_for_prefix=True)
 
 
-class BaslerCameraSettings(BaseModel):
+class BaslerCameraAtom(BaseModel):
     serial_number: Optional[int] = default_from_env("SERIAL_NUMBER", None)
     ip_address: Optional[str] = default_from_env("IP_ADDRESS", None)
     subnet_mask: Optional[str] = default_from_env("SUBNET_MASK", None)
 
+
+class BaslerCameraSettings(BaslerCameraAtom):
     transmission_type: Optional[TransmissionType] = default_from_env("TRANSMISSION_TYPE", "Unicast")
     destination_ip_address: Optional[str] = default_from_env("DESTINATION_IP_ADDRESS", None)
     destination_port: Optional[

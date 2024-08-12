@@ -80,7 +80,7 @@ class CameraThread(threading.Thread):
                     with self.lock:
                         timestamp = datetime.now()
                         self.latest_image = {"image": img, "timestamp": timestamp, "counter": self.counter}
-                        logger.debug(f"Image set as latest image at {timestamp.isoformat()}.")
+                        # logger.debug(f"Image set as latest image at {timestamp.isoformat()}.")
                 grab_result.Release()
             sleep(self.dt_sleep)  # To avoid excessive CPU usage
 
