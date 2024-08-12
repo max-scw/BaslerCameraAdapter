@@ -4,7 +4,8 @@ from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
-from prometheus_fastapi_instrumentator import Instrumentator, metrics
+# from prometheus_fastapi_instrumentator import Instrumentator, metrics
+from prometheus_client import make_asgi_app, Counter
 
 from pathlib import Path
 from random import shuffle
@@ -53,6 +54,7 @@ logger = setup_logging(__name__)
 # define endpoints
 ENTRYPOINT_TEST = "/test"
 ENTRYPOINT_TEST_IMAGE = ENTRYPOINT_TEST + "/image"
+ENTRYPOINT_TEST_NEGATE = ENTRYPOINT_TEST + "/negate"
 
 ENTRYPOINT_BASLER = "/basler"
 ENTRYPOINT_BASLER_SINGLE_FRAME = ENTRYPOINT_BASLER + "/single-frame-acquisition"
@@ -86,41 +88,23 @@ app = FastAPI(
     license_info=license_info
 )
 
-# create endpoint for prometheus
-instrumentator = Instrumentator(
-    should_group_status_codes=False,
-    should_ignore_untemplated=True,
-    # should_instrument_requests_inprogress=True,
-    excluded_handlers=["/test/*", "/metrics"],
-    # should_respect_env_var=True,
-    # env_var_name="ENABLE_METRICS",
-    # inprogress_name="inprogress",
-    # inprogress_labels=True,
-)
-# add metrics
-instrumentator.add(
-    metrics.request_size(
-        should_include_handler=True,
-        should_include_method=False,
-        should_include_status=True,
-        # metric_namespace="a",
-        # metric_subsystem="b",
-    )
-)
-instrumentator.add(
-    metrics.response_size(
-        should_include_handler=True,
-        should_include_method=False,
-        should_include_status=True,
-        # metric_namespace="namespace",
-        # metric_subsystem="subsystem",
-    )
-)
-# expose app
-instrumentator.instrument(app, metric_namespace="basler-camera-adapter").expose(app)
+# # create endpoint for prometheus
+entrypoints_to_track = [
+    ENTRYPOINT_TAKE_PHOTO,
+    ENTRYPOINT_GET_IMAGE,
+    ENTRYPOINT_CAMERA_INFO,
+    ENTRYPOINT_TEST_NEGATE
+]
+COUNTER = dict()
+for ep in entrypoints_to_track:
+    COUNTER[ep] = Counter(
+        ep.replace("/", "_").replace("-", ""),
+        documentation=f"Counts how often the entry point {ep} is called.")
+
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
 
-# ----- home
 @app.get("/")
 async def home():
     return {
@@ -348,7 +332,9 @@ async def take_single_photo(
         **camera_params.dict(),
         acquisition_mode="SingleFrame"
     )
-
+    # increment counter for /metrics endpoint
+    COUNTER[ENTRYPOINT_TAKE_PHOTO].inc()
+    # function return
     return take_picture(camera_params_, photo_params)
 
 
@@ -374,6 +360,9 @@ def get_camera_info(
             **add_params
         )
     )
+    # increment counter for /metrics endpoint
+    COUNTER[ENTRYPOINT_CAMERA_INFO].inc()
+    # function return
     return cam.get_camera_info()
 
 
@@ -387,7 +376,9 @@ async def get_latest_photo(
         **camera_params.dict(),
         acquisition_mode="Continuous"
     )
-
+    # increment counter for /metrics endpoint
+    COUNTER[ENTRYPOINT_GET_IMAGE].inc()
+    # function return
     return take_picture(camera_params_, photo_params)
 
 
@@ -408,8 +399,10 @@ def close_cameras():
 
 
 # ----- TEST FUNCTIONS
-@app.get(ENTRYPOINT_TEST)
+@app.get(ENTRYPOINT_TEST_NEGATE)
 def negate(boolean: bool):
+    # global COUNTER
+    COUNTER[ENTRYPOINT_TEST_NEGATE].inc()
     return not boolean
 
 
