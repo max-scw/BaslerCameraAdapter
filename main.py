@@ -4,7 +4,6 @@ from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
-# from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from prometheus_client import make_asgi_app, Counter
 
 from pathlib import Path
@@ -33,6 +32,7 @@ from DataModels import (
     BaslerCameraSettings,
     BaslerCameraParams,
     PhotoParams,
+    BaslerCameraAtom,
     OutputImageFormat,
     default_from_env
 )
@@ -340,9 +340,7 @@ async def take_single_photo(
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
 def get_camera_info(
-        serial_number: int = None,
-        ip_address: str = None,
-        subnet_mask: str = None
+    BaslerCameraAtom = Depends()
 ):
     add_params = dict()
     global CAMERA
