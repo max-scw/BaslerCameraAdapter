@@ -329,7 +329,10 @@ async def take_single_photo(
 ):
     # hardcode acquisition mode to single frame
     camera_params_ = BaslerCameraParams(
-        **camera_params.dict(),
+        **{
+            ky: vl for ky, vl in camera_params.dict().items()
+            if (vl is not None) and (vl not in ("null", "Undefined"))
+        },
         acquisition_mode="SingleFrame"
     )
     # increment counter for /metrics endpoint
@@ -369,7 +372,10 @@ async def get_latest_photo(
 ):
     # hardcode acquisition mode to continuous
     camera_params_ = BaslerCameraParams(
-        **camera_params.dict(),
+        **{
+            ky: vl for ky, vl in camera_params.dict().items()
+            if (vl is not None) and (vl not in ("null", "Undefined"))
+        },
         acquisition_mode="Continuous"
     )
     # increment counter for /metrics endpoint
