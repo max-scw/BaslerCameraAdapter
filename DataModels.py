@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from utils import get_env_variable, set_env_variable
+from utils import default_from_env , set_env_variable
 from typing import Optional, Annotated, Literal, Any, Union, List, Tuple
 
 # define new data types
@@ -91,10 +91,6 @@ PixelType = Literal[
 OutputImageFormat = Literal["RGB", "BGR", "Mono", "null"]
 AcquisitionMode = Literal["SingleFrame", "Continuous"]
 TransmissionType = Literal["Unicast", "Multicast", "Broadcast"]
-
-
-def default_from_env(key: Union[str, List[str]], default: Any) -> Any:
-    return get_env_variable(key, default, check_for_prefix=True)
 
 
 class BaslerCameraAtom(BaseModel):

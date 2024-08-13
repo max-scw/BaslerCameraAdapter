@@ -52,6 +52,10 @@ def get_environment_variables(prefix: str = None, with_prefix: bool = True) -> D
     return config
 
 
+def default_from_env(key: Union[str, List[str]], default: Any) -> Any:
+    return get_env_variable(key, default, check_for_prefix=True)
+
+
 re_number = re.compile("^[0-9.,]+$")
 re_integer = re.compile(r"^\d+$")
 re_float = re.compile(r"^((\d+\.(\d+)?)|(\.\d+))$")
