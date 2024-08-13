@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
 from utils import default_from_env , set_env_variable
-from typing import Optional, Annotated, Literal, Any, Union, List, Tuple
+from typing import Optional, Annotated, Literal, Any, Union, List, Tuple, Dict
 
 # define new data types
 PixelType = Literal[
@@ -91,6 +91,14 @@ PixelType = Literal[
 OutputImageFormat = Literal["RGB", "BGR", "Mono", "null"]
 AcquisitionMode = Literal["SingleFrame", "Continuous"]
 TransmissionType = Literal["Unicast", "Multicast", "Broadcast"]
+
+
+def get_not_none_values(params: BaseModel) -> Dict[str, Any]:
+    """returns the parameter of a Data Model but ignores keys that indicate undefined values."""
+    return {
+        ky: vl for ky, vl in params.dict().items()
+        if not ((vl is None) or (isinstance(vl, str) and vl in ("null", "None", "Undefined")))
+    }
 
 
 class BaslerCameraAtom(BaseModel):

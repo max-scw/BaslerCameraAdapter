@@ -26,7 +26,7 @@ from datetime import datetime
 # custom packages
 from BaslerCamera import BaslerCamera
 from BaslerCameraThread import CameraThread
-from utils import get_env_variable, setup_logging, set_env_variable
+from utils import default_from_env, setup_logging
 
 from DataModels import (
     BaslerCameraSettings,
@@ -34,15 +34,15 @@ from DataModels import (
     PhotoParams,
     BaslerCameraAtom,
     OutputImageFormat,
-    default_from_env
+    get_not_none_values
 )
 from typing import Union
 
 # store time stamp to display the startup time at default entry point
 DATETIME_INIT = datetime.now()
 
-T_SLEEP = 1 / get_env_variable("FRAMES_PER_SECOND", 10, check_for_prefix=True)
-PIXEL_FORMAT = get_env_variable("PIXEL_TYPE", None, check_for_prefix=True)
+T_SLEEP = 1 / default_from_env("FRAMES_PER_SECOND", 10)
+PIXEL_FORMAT = default_from_env("PIXEL_TYPE", None)
 
 # create global camera instance
 CAMERA: BaslerCamera = None
@@ -180,7 +180,7 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
 def get_test_image() -> Union[Path, None]:
 
     # get path to image or folder / name pattern
-    image_path = get_env_variable("TEST_IMAGE_PATH", "/home/app/test")
+    image_path = default_from_env("TEST_IMAGE_PATH", "/home/app/test")
     logger.debug(f"Return test image: TEST_IMAGE_PATH={image_path}")
 
     if image_path:
@@ -329,10 +329,7 @@ async def take_single_photo(
 ):
     # hardcode acquisition mode to single frame
     camera_params_ = BaslerCameraParams(
-        **{
-            ky: vl for ky, vl in camera_params.dict().items()
-            if (vl is not None) and (vl not in ("null", "Undefined"))
-        },
+        **get_not_none_values(camera_params),
         acquisition_mode="SingleFrame"
     )
     # increment counter for /metrics endpoint
@@ -372,10 +369,7 @@ async def get_latest_photo(
 ):
     # hardcode acquisition mode to continuous
     camera_params_ = BaslerCameraParams(
-        **{
-            ky: vl for ky, vl in camera_params.dict().items()
-            if (vl is not None) and (vl not in ("null", "Undefined"))
-        },
+        **get_not_none_values(camera_params),
         acquisition_mode="Continuous"
     )
     # increment counter for /metrics endpoint
