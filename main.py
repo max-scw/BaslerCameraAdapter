@@ -1,10 +1,7 @@
-from fastapi import FastAPI
-# from fastapi_offline import FastAPIOffline as FastAPI
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
-from prometheus_client import make_asgi_app, Counter, Gauge
 
 from pathlib import Path
 from random import shuffle
@@ -15,18 +12,14 @@ from pypylon.pylon import TimeoutException
 
 from time import sleep
 
-# versions / info
-import fastapi
-import sys
-
 # logging / timing
 from timeit import default_timer
-from datetime import datetime
 
 # custom packages
 from BaslerCamera import BaslerCamera
 from BaslerCameraThread import CameraThread
 from utils import default_from_env, setup_logging
+from utils_fastapi import setup_prometheus_metrics, default_fastapi_setup
 
 from DataModels import (
     BaslerCameraSettings,
@@ -38,8 +31,6 @@ from DataModels import (
 )
 from typing import Union
 
-# store time stamp to display the startup time at default entry point
-DATETIME_INIT = datetime.now()
 
 T_SLEEP = 1 / default_from_env("FRAMES_PER_SECOND", 10)
 PIXEL_FORMAT = default_from_env("PIXEL_TYPE", None)
@@ -79,36 +70,18 @@ license_info = {
     "name": "BSD 3-Clause License",
     "url": "https://github.com/max-scw/BaslerCameraAdapter/blob/main/LICENSE",
 }
-app = FastAPI(
-    title=title,
-    description=description,
-    summary=summary,
-    # version="0.0.1",
-    contact=contact,
-    license_info=license_info
-)
 
+# setup of fastAPI server
+app = default_fastapi_setup(title, summary, description, license_info, contact)
 # set up /metrics endpoint for prometheus
-metrics_app = make_asgi_app()
-app.mount("/metrics", metrics_app)
-# set up custom metrics
-entrypoints_to_track = [
-    ENTRYPOINT_TAKE_PHOTO,
-    ENTRYPOINT_GET_IMAGE,
-    ENTRYPOINT_CAMERA_INFO
-]
-COUNTER = dict()
-TIMING = dict()
-for ep in entrypoints_to_track:
-    name = ep.strip("/").replace("/", "_").replace("-", "")
-    COUNTER[ep] = Counter(
-        name=name,
-        documentation=f"Counts how often the entry point {ep} is called."
-    )
-    TIMING[ep] = Gauge(
-        name=name + "_execution_time",
-        documentation=f"Latest execution time of the entry point {ep}."
-    )
+EXECUTION_COUNTER, EXECUTION_TIMING = setup_prometheus_metrics(
+    app,
+    entrypoints_to_track=[
+        ENTRYPOINT_TAKE_PHOTO,
+        ENTRYPOINT_GET_IMAGE,
+        ENTRYPOINT_CAMERA_INFO
+    ]
+)
 
 
 # ----- Interact with the Basler camera
@@ -311,24 +284,8 @@ def take_picture(
 
 
 # ----- define entrypoints
-@app.get("/")
-async def home():
-    return {
-        "Title": title,
-        "Description": summary,
-        "Help": "see /docs for help (automatic docs with Swagger UI).",
-        "Software": {
-            "fastAPI": f"version {fastapi.__version__}",
-            "Python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        },
-        "License": license_info,
-        "Impress": contact,
-        "Startup date": DATETIME_INIT
-    }
-
-
 @app.get(ENTRYPOINT_TAKE_PHOTO)
-@TIMING[ENTRYPOINT_TAKE_PHOTO].time()
+@EXECUTION_TIMING[ENTRYPOINT_TAKE_PHOTO].time()
 async def take_single_photo(
         camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
@@ -339,13 +296,13 @@ async def take_single_photo(
         acquisition_mode="SingleFrame"
     )
     # increment counter for /metrics endpoint
-    COUNTER[ENTRYPOINT_TAKE_PHOTO].inc()
+    EXECUTION_COUNTER[ENTRYPOINT_TAKE_PHOTO].inc()
     # function return
     return take_picture(camera_params_, photo_params)
 
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
-@TIMING[ENTRYPOINT_CAMERA_INFO].time()
+@EXECUTION_TIMING[ENTRYPOINT_CAMERA_INFO].time()
 def get_camera_info(
     camera_params: BaslerCameraAtom = Depends()
 ):
@@ -364,13 +321,13 @@ def get_camera_info(
         )
     )
     # increment counter for /metrics endpoint
-    COUNTER[ENTRYPOINT_CAMERA_INFO].inc()
+    EXECUTION_COUNTER[ENTRYPOINT_CAMERA_INFO].inc()
     # function return
     return cam.get_camera_info()
 
 
 @app.get(ENTRYPOINT_GET_IMAGE)
-@TIMING[ENTRYPOINT_GET_IMAGE].time()
+@EXECUTION_TIMING[ENTRYPOINT_GET_IMAGE].time()
 async def get_latest_photo(
         camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
@@ -381,7 +338,7 @@ async def get_latest_photo(
         acquisition_mode="Continuous"
     )
     # increment counter for /metrics endpoint
-    COUNTER[ENTRYPOINT_GET_IMAGE].inc()
+    EXECUTION_COUNTER[ENTRYPOINT_GET_IMAGE].inc()
     # function return
     return take_picture(camera_params_, photo_params)
 
@@ -406,7 +363,7 @@ def close_cameras():
 @app.get(ENTRYPOINT_TEST_NEGATE)
 def negate(boolean: bool):
     # global COUNTER
-    COUNTER[ENTRYPOINT_TEST_NEGATE].inc()
+    EXECUTION_COUNTER[ENTRYPOINT_TEST_NEGATE].inc()
     return not boolean
 
 
@@ -432,5 +389,5 @@ if __name__ == "__main__":
             access_log=True,
             log_config=None  # Uses the logging configuration in the application
         )
-    except:
+    except Exception:
         close_cameras()
