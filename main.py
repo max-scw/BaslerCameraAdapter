@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 
 import uvicorn
-from prometheus_client import make_asgi_app, Counter
+from prometheus_client import make_asgi_app, Counter, Gauge
 
 from pathlib import Path
 from random import shuffle
@@ -88,42 +88,30 @@ app = FastAPI(
     license_info=license_info
 )
 
-# # create endpoint for prometheus
+# set up /metrics endpoint for prometheus
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+# set up custom metrics
 entrypoints_to_track = [
     ENTRYPOINT_TAKE_PHOTO,
     ENTRYPOINT_GET_IMAGE,
-    ENTRYPOINT_CAMERA_INFO,
-    ENTRYPOINT_TEST_NEGATE
+    ENTRYPOINT_CAMERA_INFO
 ]
 COUNTER = dict()
+TIMING = dict()
 for ep in entrypoints_to_track:
+    name = ep.strip("/").replace("/", "_").replace("-", "")
     COUNTER[ep] = Counter(
-        ep.replace("/", "_").replace("-", ""),
-        documentation=f"Counts how often the entry point {ep} is called.")
-
-metrics_app = make_asgi_app()
-app.mount("/metrics", metrics_app)
-
-
-@app.get("/")
-async def home():
-    return {
-        "Title": title,
-        "Description": summary,
-        "Help": "see /docs for help (automatic docs with Swagger UI).",
-        "Software": {
-            "fastAPI": f"version {fastapi.__version__}",
-            "Python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        },
-        "License": license_info,
-        "Impress": contact,
-        "Startup date": DATETIME_INIT
-    }
+        name=name,
+        documentation=f"Counts how often the entry point {ep} is called."
+    )
+    TIMING[ep] = Gauge(
+        name=name + "_execution_time",
+        documentation=f"Latest execution time of the entry point {ep}."
+    )
 
 
 # ----- Interact with the Basler camera
-
-
 def stop_camera_thread() -> bool:
     CAMERA_THREAD.stop()
     CAMERA_THREAD.join()
@@ -322,7 +310,25 @@ def take_picture(
     )
 
 
+# ----- define entrypoints
+@app.get("/")
+async def home():
+    return {
+        "Title": title,
+        "Description": summary,
+        "Help": "see /docs for help (automatic docs with Swagger UI).",
+        "Software": {
+            "fastAPI": f"version {fastapi.__version__}",
+            "Python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        },
+        "License": license_info,
+        "Impress": contact,
+        "Startup date": DATETIME_INIT
+    }
+
+
 @app.get(ENTRYPOINT_TAKE_PHOTO)
+@TIMING[ENTRYPOINT_TAKE_PHOTO].time()
 async def take_single_photo(
         camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
@@ -339,6 +345,7 @@ async def take_single_photo(
 
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
+@TIMING[ENTRYPOINT_CAMERA_INFO].time()
 def get_camera_info(
     camera_params: BaslerCameraAtom = Depends()
 ):
@@ -363,6 +370,7 @@ def get_camera_info(
 
 
 @app.get(ENTRYPOINT_GET_IMAGE)
+@TIMING[ENTRYPOINT_GET_IMAGE].time()
 async def get_latest_photo(
         camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
