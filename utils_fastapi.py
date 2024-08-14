@@ -51,22 +51,25 @@ def default_fastapi_setup(
 def setup_prometheus_metrics(
         app: FastAPI,
         entrypoints_to_track: list
-) -> Tuple[Dict[str, Counter], Dict[str, Gauge]]:
+) -> Tuple[Dict[str, Counter], Dict[str, Counter], Dict[str, Gauge]]:
     # set up /metrics endpoint for prometheus
     metrics_app = make_asgi_app()
     app.mount("/metrics", metrics_app)
 
     # set up custom metrics
-    execution_counter = dict()
-    execution_timing = dict()
+    execution_counter, exception_counter, execution_timing = dict(), dict(), dict()
     for ep in entrypoints_to_track:
         name = ep.strip("/").replace("/", "_").replace("-", "")
         execution_counter[ep] = Counter(
             name=name,
             documentation=f"Counts how often the entry point {ep} is called."
         )
+        exception_counter[ep] = Counter(
+            name=name + "_exception",
+            documentation=f"Counts how often the entry point {ep} raises an exception."
+        )
         execution_timing[ep] = Gauge(
             name=name + "_execution_time",
             documentation=f"Latest execution time of the entry point {ep}."
         )
-    return execution_counter, execution_timing
+    return execution_counter, exception_counter, execution_timing

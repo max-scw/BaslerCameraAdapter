@@ -74,7 +74,7 @@ license_info = {
 # setup of fastAPI server
 app = default_fastapi_setup(title, summary, description, license_info, contact)
 # set up /metrics endpoint for prometheus
-EXECUTION_COUNTER, EXECUTION_TIMING = setup_prometheus_metrics(
+EXECUTION_COUNTER, EXCEPTION_COUNTER, EXECUTION_TIMING = setup_prometheus_metrics(
     app,
     entrypoints_to_track=[
         ENTRYPOINT_TAKE_PHOTO,
@@ -286,6 +286,7 @@ def take_picture(
 # ----- define entrypoints
 @app.get(ENTRYPOINT_TAKE_PHOTO)
 @EXECUTION_TIMING[ENTRYPOINT_TAKE_PHOTO].time()
+@EXCEPTION_COUNTER[ENTRYPOINT_TAKE_PHOTO].count_exceptions()
 async def take_single_photo(
         camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
@@ -303,6 +304,7 @@ async def take_single_photo(
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
 @EXECUTION_TIMING[ENTRYPOINT_CAMERA_INFO].time()
+@EXCEPTION_COUNTER[ENTRYPOINT_CAMERA_INFO].count_exceptions()
 def get_camera_info(
     camera_params: BaslerCameraAtom = Depends()
 ):
@@ -328,6 +330,7 @@ def get_camera_info(
 
 @app.get(ENTRYPOINT_GET_IMAGE)
 @EXECUTION_TIMING[ENTRYPOINT_GET_IMAGE].time()
+@EXCEPTION_COUNTER[ENTRYPOINT_GET_IMAGE].count_exceptions()
 async def get_latest_photo(
         camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
