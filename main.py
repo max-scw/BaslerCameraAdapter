@@ -8,6 +8,9 @@ from random import shuffle
 import io
 from PIL import Image
 
+import signal
+import sys
+
 from pypylon.pylon import TimeoutException
 
 from time import sleep
@@ -394,6 +397,19 @@ def return_test_image():
     else:
         # return None otherwise
         return None
+
+
+# ---------- graceful stop
+# Signal handler to ensure cleanup on kill signals
+def signal_handler(signal, frame):
+    logger.info("Signal received, closing camera.")
+    close_cameras()
+    sys.exit(0)
+
+
+# Setup signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 
 if __name__ == "__main__":
