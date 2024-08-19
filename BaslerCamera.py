@@ -5,7 +5,7 @@ from pathlib import Path
 
 import re
 
-from typing import Union, Literal, Any, List
+from typing import Union, Literal, Any, List, Dict
 
 from DataModels import (
     PixelType,
@@ -239,21 +239,24 @@ class BaslerCamera:
 
         logger.debug(f"Init {self}")
 
+    def __dict__(self) -> Dict[str, Any]:
+        # key map from (local) attributes to better-readable names (that exist as properties)
+        key_map = {
+            "serial_number": "serial_number",
+            "ip_address": "ip_address",
+            "subnet_mask": "subnet_mask",
+            "timeout": "timeout",
+            "_transmission_type": "transmission_type",
+            "_destination_ip_address": "destination_ip_address",
+            "_destination_port": "destination_port",
+            "_acquisition_mode": "acquisition_mode",
+            "_pixel_format": "pixel_format",
+        }
+        return {vl: getattr(self, ky) for ky, vl in key_map}
+
     def __repr__(self):
-        keys = [
-            "serial_number",
-            "ip_address",
-            "subnet_mask",
-            "timeout",
-            "_transmission_type",
-            "_destination_ip_address",
-            "_destination_port",
-            "_acquisition_mode",
-            "_pixel_format",
-        ]
-        params = {ky: getattr(self, ky) for ky in keys if getattr(self, ky)}
-        text_input_params = ", ".join([f"{ky}={vl}" for ky, vl in params.items()])
-        return f"BaslerCamera({text_input_params})"
+        txt = ", ".join([f"{ky}={vl}" for ky, vl in self.__dict__().items() if vl])
+        return f"BaslerCamera({txt})"
 
     def __bool__(self) -> bool:
         return self._camera is not None
