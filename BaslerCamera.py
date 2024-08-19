@@ -252,7 +252,7 @@ class BaslerCamera:
             "_acquisition_mode": "acquisition_mode",
             "_pixel_format": "pixel_format",
         }
-        return {vl: getattr(self, ky) for ky, vl in key_map}
+        return {vl: getattr(self, ky) for ky, vl in key_map.itmes()}
 
     def __repr__(self):
         txt = ", ".join([f"{ky}={vl}" for ky, vl in self.__dict__().items() if vl])
