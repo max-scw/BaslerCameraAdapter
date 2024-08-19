@@ -245,6 +245,7 @@ def take_picture(
     cam = get_camera(camera_params, photo_params)
     t.append(("get_camera()", default_timer()))
 
+    image_array = None
     if camera_params.acquisition_mode == "Continuous":
         # initialize control variable
         start_thread = False
