@@ -287,7 +287,7 @@ def take_picture(
 @app.get(ENTRYPOINT_TAKE_PHOTO)
 @EXECUTION_TIMING[ENTRYPOINT_TAKE_PHOTO].time()
 @EXCEPTION_COUNTER[ENTRYPOINT_TAKE_PHOTO].count_exceptions()
-async def take_single_photo(
+def take_single_photo(
         camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
 ):
@@ -331,7 +331,7 @@ def get_camera_info(
 @app.get(ENTRYPOINT_GET_IMAGE)
 @EXECUTION_TIMING[ENTRYPOINT_GET_IMAGE].time()
 @EXCEPTION_COUNTER[ENTRYPOINT_GET_IMAGE].count_exceptions()
-async def get_latest_photo(
+def get_latest_photo(
         camera_params: BaslerCameraSettings = Depends(),
         photo_params: PhotoParams = Depends()
 ):
