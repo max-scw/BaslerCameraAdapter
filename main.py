@@ -110,15 +110,23 @@ def start_camera_thread(
 def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
     t1 = default_timer()
 
+    flag_create_camera = False
     # "load" global variable
     global CAMERA
 
-    if (
-            (CAMERA is None)
-            or
-            (isinstance(CAMERA, BaslerCamera) and any(
-                [val != getattr(CAMERA, ky) for ky, val in params.dict().items()]))
-    ):
+    if CAMERA is None:
+        flag_create_camera = True
+    elif isinstance(CAMERA, BaslerCamera):
+        try:
+            if not CAMERA:
+                flag_create_camera = True
+            elif any([val != getattr(CAMERA, ky) for ky, val in params.dict().items()]):
+                flag_create_camera = True
+        except Exception:
+            # if
+            flag_create_camera = True
+
+    if flag_create_camera:
         # disconnect camera if existing
         if isinstance(CAMERA, BaslerCamera):
             CAMERA.disconnect()
@@ -130,10 +138,15 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
         t3 = default_timer()
         logger.debug(f"Creating BaslerCamera object took {(t3 - t2) * 1000:.4g} ms")
 
+        # create camera
+        CAMERA.create_camera()
+        t4 = default_timer()
+        logger.debug(f"Creating a camera reference took {(t4 - t3) * 1000:.4g} ms")
+
         # Connect to the camera
         CAMERA.connect()
-        t4 = default_timer()
-        logger.debug(f"Connecting to camera took {(t4 - t3) * 1000:.4g} ms")
+        t5 = default_timer()
+        logger.debug(f"Connecting to camera took {(t5 - t4) * 1000:.4g} ms")
 
     return CAMERA
 

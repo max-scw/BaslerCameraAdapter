@@ -255,8 +255,16 @@ class BaslerCamera:
         text_input_params = ", ".join([f"{ky}={vl}" for ky, vl in params.items()])
         return f"BaslerCamera({text_input_params})"
 
+    def __bool__(self) -> bool:
+        return self._camera is not None
+
+    # def __eq__(self, other):
+    #     for ky, vl in dict(self).items():
+    #
+    #     other.dict().items()
+
     def open(self):
-        if self._camera is None:
+        if self:
             raise Exception("No camera created yet")
         else:
             if not self._camera.IsOpen():
@@ -271,7 +279,7 @@ class BaslerCamera:
             self._camera.Close()
             logger.debug("Camera closed.")
 
-    def create_camera(self):
+    def create_camera(self):  # -> BaslerCamera
         t0 = default_timer()
         self._camera = create_camera(
             serial_number=self.serial_number,
@@ -280,9 +288,9 @@ class BaslerCamera:
         )
         t1 = default_timer()
         logger.debug(f"Creating a camera took {(t1 - t0) * 1000:.4g} ms")
+        return self
 
     def connect(self) -> bool:
-        self.create_camera()
         self.open()
 
         if not self.is_emulated:
