@@ -128,7 +128,7 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
 
     if flag_create_camera:
         # disconnect camera if existing
-        if isinstance(CAMERA, BaslerCamera):
+        if CAMERA:
             CAMERA.disconnect()
         t2 = default_timer()
         logger.debug(f"Disconnect ({isinstance(CAMERA, BaslerCamera)}) took {(t2 - t1) * 1000:.4g} ms")

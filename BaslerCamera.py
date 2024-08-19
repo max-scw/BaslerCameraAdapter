@@ -115,7 +115,7 @@ def create_camera(
     # access / build the camera
     cam = pylon.InstantCamera(device)
     t2 = default_timer()
-    logger.debug(f"Creating a camera instance took {(t2 - t1) * 1000:.4g} ms")
+    logger.debug(f"Creating a Pylon InstantCamera instance took {(t2 - t1) * 1000:.4g} ms")
     return cam
 
 
@@ -263,21 +263,28 @@ class BaslerCamera:
     #
     #     other.dict().items()
 
-    def open(self):
+    def open(self) -> bool:
         if self:
-            raise Exception("No camera created yet")
-        else:
-            if not self._camera.IsOpen():
+            if not self.is_open:
                 self._camera.Open()
                 logger.debug("Camera opened.")
+        else:
+            raise Exception("No camera created yet")
 
-    def close(self):
+        return self.is_open
+
+    @property
+    def is_open(self) -> bool:
+        return self._camera.IsOpen() if self else False
+
+    def close(self) -> bool:
         if self._camera is not None:
             if self._camera.IsGrabbing():
                 self._camera.StopGrabbing()
             # close camera
             self._camera.Close()
             logger.debug("Camera closed.")
+        return not self.is_open
 
     def create_camera(self):  # -> BaslerCamera
         t0 = default_timer()
@@ -287,10 +294,15 @@ class BaslerCamera:
             subnet_mask=self.subnet_mask
         )
         t1 = default_timer()
-        logger.debug(f"Creating a camera took {(t1 - t0) * 1000:.4g} ms")
+        logger.debug(f"Creating BaslerInstantCamera object took {(t1 - t0) * 1000:.4g} ms")
         return self
 
     def connect(self) -> bool:
+        # create camera object if not exists
+        if not self:
+            logger.debug("Camera was not created yet. Calling create_camera() method first.")
+            self.create_camera()
+        # open connection to camera
         self.open()
 
         if not self.is_emulated:
@@ -302,17 +314,16 @@ class BaslerCamera:
             self.acquisition_mode = self._acquisition_mode
             self.pixel_format = self._pixel_format
 
-        return True
+        return self.is_open
 
     def disconnect(self) -> bool:
         self.close()
         logger.debug("Camera disconnected.")
-        return True
+        return not self.is_open
 
     def reconnect(self) -> bool:
         self.close()
-        self.open()
-        return True
+        return self.open()
 
     def start_grabbing(self, grab_strategy: int = pylon.GrabStrategy_LatestImageOnly):
         """wraps the StartGrabbing method of a pylon.InstantCamera object"""
