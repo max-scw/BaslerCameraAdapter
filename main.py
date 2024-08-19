@@ -270,7 +270,10 @@ def take_picture(
         except TimeoutException:
             stop_camera_thread()
     else:
-        image_array = cam.take_photo(photo_params.exposure_time_microseconds)
+        try:
+            image_array = cam.take_photo(photo_params.exposure_time_microseconds)
+        except TimeoutException:
+            cam.disconnect()
 
     t.append(("take photo", default_timer()))
 
@@ -368,6 +371,7 @@ def close_cameras():
     if isinstance(CAMERA, BaslerCamera):
         logger.debug("Camera was open.")
         CAMERA.disconnect()
+        CAMERA = None
 
     global CAMERA_THREAD
     if isinstance(CAMERA, CameraThread) and CAMERA_THREAD.is_alive():

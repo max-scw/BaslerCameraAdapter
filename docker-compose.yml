@@ -6,7 +6,6 @@ services:
       context: ./
       dockerfile: BaslerCameraAdapter.Dockerfile
     image: maxscw/basler-camera-adapter
-    privileged: true  # Allow access to the camera hardware
     # restart policy
     restart: unless-stopped
     stop_signal: SIGTERM  # optional: ensures a graceful stop
