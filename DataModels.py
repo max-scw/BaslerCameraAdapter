@@ -142,6 +142,6 @@ class PhotoParams(ImageParams):
 
     timeout: Optional[
         Annotated[int, Field(strict=False, ge=200)]
-    ] = default_from_env("TIMEOUT", 1000)  # milli seconds
+    ] = default_from_env("TIMEOUT_MS", 5000)  # milli seconds
 
     emulate_camera: bool = default_from_env("EMULATE_CAMERA", False)
