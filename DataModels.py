@@ -117,6 +117,10 @@ class BaslerCameraSettings(BaslerCameraAtom):
     convert_to_format: Optional[OutputImageFormat] = default_from_env("CONVERT_TO_FORMAT", "null")
     pixel_format: Optional[PixelType] = default_from_env("PIXEL_TYPE", "Undefined")
 
+    timeout_ms: Optional[
+        Annotated[int, Field(strict=False, ge=200)]
+    ] = default_from_env("TIMEOUT_MS", 5000)  # milli seconds
+
 
 class BaslerCameraParams(BaslerCameraSettings):
     acquisition_mode: Optional[AcquisitionMode] = default_from_env("ACQUISITION_MODE", "SingleFrame")
@@ -139,9 +143,5 @@ class PhotoParams(ImageParams):
     exposure_time_microseconds: Optional[
             Annotated[int, Field(strict=False, ge=500)]
     ] = default_from_env(["EXPOSURE_TIME", "EXPOSURE_TIME_MICROSECONDS"], 1000)  # micro seconds
-
-    timeout: Optional[
-        Annotated[int, Field(strict=False, ge=200)]
-    ] = default_from_env("TIMEOUT_MS", 5000)  # milli seconds
 
     emulate_camera: bool = default_from_env("EMULATE_CAMERA", False)

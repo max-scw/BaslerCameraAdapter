@@ -212,7 +212,7 @@ class BaslerCamera:
             serial_number: int = None,
             ip_address: str = None,
             subnet_mask: str = None,
-            timeout: int = 1000,  # milli seconds
+            timeout_ms: int = 99999,  # milli seconds
             transmission_type: str = "Unicast",
             destination_ip_address: str = None,
             destination_port: int = None,
@@ -223,7 +223,7 @@ class BaslerCamera:
         self.serial_number = serial_number
         self.ip_address = ip_address
         self.subnet_mask = subnet_mask
-        self.timeout = timeout if timeout else 1000
+        self.timeout = timeout_ms if timeout_ms else 1000
         self.convert_to_format = convert_to_format
         # build converter
         self.converter = build_image_format_converter(convert_to_format)

@@ -210,7 +210,9 @@ def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> 
 
     # extract parameter for a CameraParameter object
     t0 = default_timer()
-    cam_params = BaslerCameraParams(**{ky: getattr(camera_params, ky) for ky in BaslerCameraParams.model_fields})
+    cam_params = BaslerCameraParams(
+        **{ky: getattr(camera_params, ky) for ky in BaslerCameraParams.model_fields}
+    )
     cam = get_basler_camera(cam_params)
 
     if photo_params.emulate_camera:
