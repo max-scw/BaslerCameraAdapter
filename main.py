@@ -237,6 +237,8 @@ def take_picture(
         camera_params: BaslerCameraParams = Depends(),
         photo_params: PhotoParams = Depends(),
 ):
+    logger.debug(f"take_picture({camera_params}, {photo_params})")
+
     t0 = default_timer()
     t = [("start", default_timer())]
     camera_params, photo_params = process_input_variables(camera_params, photo_params)
@@ -270,15 +272,19 @@ def take_picture(
             image_array, timestamp = CAMERA_THREAD.get_image()
         except TimeoutException:
             stop_camera_thread()
+            logger.error(f"TimeoutException: CAMERA_THREAD.get_image() at {cam}")
+
     else:
         try:
             image_array = cam.take_photo(photo_params.exposure_time_microseconds)
         except TimeoutException:
             cam.disconnect()
+            logger.error(f"TimeoutException: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam}")
 
     t.append(("take photo", default_timer()))
 
     if image_array is None:
+        logger.error(f"No image was retrieved from camera: {cam}")
         raise HTTPException(400, "No image retrieved.")
 
     # save image to an in-memory bytes buffer
