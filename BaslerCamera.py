@@ -316,6 +316,10 @@ class BaslerCamera:
             self.acquisition_mode = self._acquisition_mode
             self.pixel_format = self._pixel_format
 
+            params = ["transmission_type", "destination_ip_address", "destination_port",
+                      "acquisition_mode", "pixel_format"]
+            logger.debug(f"Camera parameters set to: { {ky: getattr(self, ky) for ky in params} }")
+
         return self.is_open
 
     def disconnect(self) -> bool:
