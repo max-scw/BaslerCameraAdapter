@@ -279,16 +279,16 @@ def take_picture(
         # get image
         try:
             image_array, timestamp = CAMERA_THREAD.get_image()
-        except TimeoutException:
+        except TimeoutException as ex:
             stop_camera_thread()
-            logger.error(f"TimeoutException: CAMERA_THREAD.get_image() at {cam}")
+            logger.error(f"TimeoutException: CAMERA_THREAD.get_image() at {cam} with {ex}")
 
     else:
         try:
             image_array = cam.take_photo(photo_params.exposure_time_microseconds)
-        except TimeoutException:
+        except TimeoutException as ex:
             cam.disconnect()
-            logger.error(f"TimeoutException: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam}")
+            logger.error(f"TimeoutException: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam} with {ex}")
 
     t.append(("take photo", default_timer()))
 
