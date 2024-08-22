@@ -338,25 +338,27 @@ def take_single_photo(
 
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
-@EXECUTION_TIMING[ENTRYPOINT_CAMERA_INFO].time()
-@EXCEPTION_COUNTER[ENTRYPOINT_CAMERA_INFO].count_exceptions()
+# @EXECUTION_TIMING[ENTRYPOINT_CAMERA_INFO].time()
+# @EXCEPTION_COUNTER[ENTRYPOINT_CAMERA_INFO].count_exceptions()
 def get_camera_info(
     camera_params: BaslerCameraAtom = Depends()
 ):
-    add_params = dict()
-    global CAMERA
-    if CAMERA is not None:
-        add_params = {
-            ky: getattr(CAMERA, ky) for ky in BaslerCameraParams.model_fields
-            if ky not in BaslerCameraAtom.model_fields
-        }
+    with (EXECUTION_TIMING[ENTRYPOINT_CAMERA_INFO].time() and
+          EXCEPTION_COUNTER[ENTRYPOINT_CAMERA_INFO].count_exceptions()):
+        add_params = dict()
+        global CAMERA
+        if CAMERA is not None:
+            add_params = {
+                ky: getattr(CAMERA, ky) for ky in BaslerCameraParams.model_fields
+                if ky not in BaslerCameraAtom.model_fields
+            }
 
-    cam = get_basler_camera(
-        BaslerCameraParams(
-            **camera_params.dict(),
-            **add_params
+        cam = get_basler_camera(
+            BaslerCameraParams(
+                **camera_params.dict(),
+                **add_params
+            )
         )
-    )
     # increment counter for /metrics endpoint
     EXECUTION_COUNTER[ENTRYPOINT_CAMERA_INFO].inc()
     # function return
