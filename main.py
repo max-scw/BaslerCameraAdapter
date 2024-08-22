@@ -118,15 +118,22 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
     global CAMERA
 
     if CAMERA is None:
+        logger.debug("No camera object exists yet.")
         flag_create_camera = True
     elif isinstance(CAMERA, BaslerCamera):
         try:
             if not CAMERA:
+                logger.debug("Camera not yet created and connected.")
                 flag_create_camera = True
-            elif any([val != getattr(CAMERA, ky) for ky, val in params.dict().items()]):
+            elif any([vl != getattr(CAMERA, ky) for ky, vl in params.dict().items()]):
+                changed_params = {
+                    ky: (vl, getattr(CAMERA, ky))
+                    for ky, vl in params.dict().items() if vl != getattr(CAMERA, ky)
+                }
+                logger.debug(f"Parameter(s) differ: {changed_params}")
                 flag_create_camera = True
-        except Exception:
-            # if
+        except Exception as ex:
+            logger.error(f"Retrieving the camera object failed with {ex}")
             flag_create_camera = True
 
     if flag_create_camera:
