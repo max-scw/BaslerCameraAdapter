@@ -555,7 +555,7 @@ if __name__ == "__main__":
     # Create camera instance with IP address
     camera = BaslerCamera(
         # ip_address="192.168.10.5",
-        timeout=1000,
+        timeout_ms=1000,
         # transmission_type="Multicast",
         # destination_ip="192.168.10.221"
     )
