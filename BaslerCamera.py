@@ -245,7 +245,7 @@ class BaslerCamera:
             "serial_number": "serial_number",
             "ip_address": "ip_address",
             "subnet_mask": "subnet_mask",
-            "timeout": "timeout",
+            "timeout_ms": "timeout_ms",
             "_transmission_type": "transmission_type",
             "_destination_ip_address": "destination_ip_address",
             "_destination_port": "destination_port",
