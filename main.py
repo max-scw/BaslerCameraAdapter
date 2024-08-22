@@ -288,12 +288,12 @@ def take_picture(
             logger.debug(f"try cam.take_photo({photo_params.exposure_time_microseconds})")
             image_array = cam.take_photo(photo_params.exposure_time_microseconds)
         except TimeoutException as ex:
-            cam.disconnect()
+            cam.reconnect()
             logger.error(f"TimeoutException: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam} with {ex}")
         except Exception as ex:
             cam.disconnect()
             logger.error(f"Exception: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam} with {ex}")
-    logger.debug(f"Taking a photo took {(default_timer() - t1) / 1000:.4g} ms")
+    logger.debug(f"Taking a photo took {(default_timer() - t1) * 1000:.4g} ms")
     t.append(("take photo", default_timer()))
 
     if image_array is None:
@@ -391,7 +391,7 @@ def get_latest_photo(
 @app.get(ENTRYPOINT_BASLER_CLOSE)
 def close_cameras():
     global CAMERA
-    if isinstance(CAMERA, BaslerCamera):
+    if isinstance(CAMERA, BaslerCamera) and CAMERA.is_open:
         logger.debug("Camera was open.")
         CAMERA.disconnect()
         CAMERA = None
@@ -426,12 +426,17 @@ def return_test_image():
         return None
 
 
+@app.on_event("shutdown")
+def on_shutdown():
+    logger.info("Shutting down ...")
+    close_cameras()
+
+
 # ---------- graceful stop
 # Signal handler to ensure cleanup on kill signals
 def signal_handler(signal, frame):
     logger.info("Signal received, closing camera.")
     close_cameras()
-    sys.exit(0)
 
 
 # Setup signal handlers

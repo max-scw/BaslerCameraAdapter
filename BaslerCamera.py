@@ -525,7 +525,11 @@ class BaslerCamera:
         else:
             return False
 
-    def take_photo(self, exposure_time_microseconds: int = None):
+    def take_photo(
+            self,
+            exposure_time_microseconds: int = None,
+            timeout_handling: int = pylon.TimeoutHandling_ThrowException
+    ):
         logger.debug(f"BaslerCamera.take_photo({exposure_time_microseconds})")
         t0 = default_timer()
 
@@ -535,12 +539,14 @@ class BaslerCamera:
         self.exposure_time = exposure_time_microseconds
 
         # timeout in milliseconds
-        if self.timeout_ms < (exposure_time_microseconds / 1000):
+        if self.timeout_ms < (self.exposure_time / 1000):
             raise ValueError(f"Exposure time is larger than the camera timeout.")
+
+        self.stop_grabbing()
 
         # Wait for a grab result
         logger.debug(f"BaslerCamera.take_photo(): GrabOne({self.timeout_ms})")
-        grab_result = self._camera.GrabOne(self.timeout_ms)  # timeout in milliseconds
+        grab_result = self._camera.GrabOne(self.timeout_ms, timeout_handling)  # timeout in milliseconds
 
         logger.debug(f"BaslerCamera.take_photo(): GrabOne({self.timeout_ms}) succeeded: {grab_result.GrabSucceeded()}")
         img = get_image(grab_result, self.converter)
