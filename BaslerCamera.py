@@ -374,6 +374,7 @@ class BaslerCamera:
                 raise TypeError(f"Invalid exposure time type: {value} (micro-seconds). Must be an Integer or Float.")
 
             if value != self.exposure_time:
+                logger.debug(f"Setting Exposure Time to {value}.")
                 self._camera.ExposureTimeAbs.SetValue(float(value))
 
     # Transmission type
@@ -525,6 +526,7 @@ class BaslerCamera:
             return False
 
     def take_photo(self, exposure_time_microseconds: int = None):
+        logger.debug(f"BaslerCamera.take_photo({exposure_time_microseconds})")
         t0 = default_timer()
 
         self.open()
@@ -537,11 +539,13 @@ class BaslerCamera:
             raise ValueError(f"Exposure time is larger than the camera timeout.")
 
         # Wait for a grab result
+        logger.debug(f"BaslerCamera.take_photo(): GrabOne({self.timeout_ms})")
         grab_result = self._camera.GrabOne(self.timeout_ms)  # timeout in milliseconds
 
+        logger.debug(f"BaslerCamera.take_photo(): GrabOne({self.timeout_ms}) succeeded: {grab_result.GrabSucceeded()}")
         img = get_image(grab_result, self.converter)
 
-        logger.debug(f"take_photo() took {(default_timer() - t0) * 1000:.4g} ms.")
+        logger.debug(f"BaslerCamera.take_photo() took {(default_timer() - t0) * 1000:.4g} ms.")
         return img
 
 
