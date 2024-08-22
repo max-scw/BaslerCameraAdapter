@@ -223,7 +223,7 @@ class BaslerCamera:
         self.serial_number = serial_number
         self.ip_address = ip_address
         self.subnet_mask = subnet_mask
-        self.timeout = timeout_ms if timeout_ms else 1000
+        self.timeout_ms = timeout_ms if timeout_ms else 1000
         self.convert_to_format = convert_to_format
         # build converter
         self.converter = build_image_format_converter(convert_to_format)
@@ -245,7 +245,7 @@ class BaslerCamera:
             "serial_number": "serial_number",
             "ip_address": "ip_address",
             "subnet_mask": "subnet_mask",
-            "timeout": "timeout",
+            "timeout_ms": "timeout_ms",
             "_transmission_type": "transmission_type",
             "_destination_ip_address": "destination_ip_address",
             "_destination_port": "destination_port",
@@ -344,7 +344,7 @@ class BaslerCamera:
 
     def retrieve_result(self, timeout_handling: int = pylon.TimeoutHandling_ThrowException):
         # TODO add retry strategy
-        return self._camera.RetrieveResult(self.timeout, timeout_handling)
+        return self._camera.RetrieveResult(self.timeout_ms, timeout_handling)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
@@ -530,11 +530,11 @@ class BaslerCamera:
         self.exposure_time = exposure_time_microseconds
 
         # timeout in milliseconds
-        if self.timeout < (exposure_time_microseconds / 1000):
+        if self.timeout_ms < (exposure_time_microseconds / 1000):
             raise ValueError(f"Exposure time is larger than the camera timeout.")
 
         # Wait for a grab result
-        grab_result = self._camera.GrabOne(self.timeout)  # timeout in milliseconds
+        grab_result = self._camera.GrabOne(self.timeout_ms)  # timeout in milliseconds
 
         img = get_image(grab_result, self.converter)
 
