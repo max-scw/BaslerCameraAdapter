@@ -138,11 +138,10 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
 
     if flag_create_camera:
         # disconnect camera if existing
-        if CAMERA:
+        if isinstance(CAMERA, BaslerCamera):
             CAMERA.disconnect()
-        t2 = default_timer()
-        logger.debug(f"Disconnect ({isinstance(CAMERA, BaslerCamera)}) took {(t2 - t1) * 1000:.4g} ms")
 
+        t2 = default_timer()
         # create new instance
         CAMERA = BaslerCamera(**params.dict())
         t3 = default_timer()
@@ -285,10 +284,14 @@ def take_picture(
 
     else:
         try:
+            logger.debug(f"try cam.take_photo({photo_params.exposure_time_microseconds})")
             image_array = cam.take_photo(photo_params.exposure_time_microseconds)
         except TimeoutException as ex:
             cam.disconnect()
             logger.error(f"TimeoutException: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam} with {ex}")
+        except Exception as ex:
+            cam.disconnect()
+            logger.error(f"Exception: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam} with {ex}")
 
     t.append(("take photo", default_timer()))
 

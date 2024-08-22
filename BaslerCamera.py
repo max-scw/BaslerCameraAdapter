@@ -527,7 +527,7 @@ class BaslerCamera:
     def take_photo(self, exposure_time_microseconds: int = None):
         t0 = default_timer()
 
-        self.open()
+        self.connect()
 
         # set time how long the camera sensor is exposed to light
         self.exposure_time = exposure_time_microseconds
