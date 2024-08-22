@@ -255,6 +255,7 @@ def take_picture(
     cam = get_camera(camera_params, photo_params)
     t.append(("get_camera()", default_timer()))
 
+    t1 = default_timer()
     image_array = None
     if camera_params.acquisition_mode == "Continuous":
         # initialize control variable
@@ -292,7 +293,7 @@ def take_picture(
         except Exception as ex:
             cam.disconnect()
             logger.error(f"Exception: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam} with {ex}")
-
+    logger.debug(f"Taking a photo took {(default_timer() - t1) / 1000:.4g} ms")
     t.append(("take photo", default_timer()))
 
     if image_array is None:
@@ -301,6 +302,7 @@ def take_picture(
 
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
+    logger.debug(f"Image.size: {im.size}")
     if photo_params.rotation_angle != 0:
         im.rotate(angle=photo_params.rotation_angle, expand=photo_params.rotation_expand)
 
