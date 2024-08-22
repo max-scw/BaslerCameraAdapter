@@ -282,8 +282,7 @@ class BaslerCamera:
 
     def close(self) -> bool:
         if self._camera is not None:
-            if self._camera.IsGrabbing():
-                self._camera.StopGrabbing()
+            self.stop_grabbing()
             # close camera
             self._camera.Close()
             logger.debug("Camera closed.")
@@ -325,8 +324,8 @@ class BaslerCamera:
         return not self.is_open
 
     def reconnect(self) -> bool:
-        self.close()
-        return self.open()
+        self.disconnect()
+        return self.connect()
 
     def start_grabbing(self, grab_strategy: int = pylon.GrabStrategy_LatestImageOnly):
         """wraps the StartGrabbing method of a pylon.InstantCamera object"""
@@ -351,7 +350,6 @@ class BaslerCamera:
 
     def __del__(self):
         self.close()
-        # self.camera = None
 
     @property
     def is_emulated(self) -> bool:
