@@ -212,7 +212,7 @@ class BaslerCamera:
             serial_number: int = None,
             ip_address: str = None,
             subnet_mask: str = None,
-            timeout_ms: int = 99999,  # milli seconds
+            timeout_ms: int = 5000,  # milli seconds
             transmission_type: str = "Unicast",
             destination_ip_address: str = None,
             destination_port: int = None,
@@ -413,9 +413,10 @@ class BaslerCamera:
                 raise TypeError(f"Invalid destination ip address: {value}. Must be an string.")
 
             # parameter are only writable if transmission type is Multicast
-            if (self.transmission_type == "Multicast") and (value != self.destination_ip_address):
-                logger.debug(f"Setting Destination IP Address to {value}.")
-                self._camera.StreamGrabber.DestinationAddr.SetValue(value)
+            if self.transmission_type == "Multicast":
+                if value != self.destination_ip_address:
+                    logger.debug(f"Setting Destination IP Address to {value}.")
+                    self._camera.StreamGrabber.DestinationAddr.SetValue(value)
             else:
                 raise Exception(f"Transmission type must be 'Multicast' to set a destination IP address"
                                 f" but was {self.transmission_type}.")
