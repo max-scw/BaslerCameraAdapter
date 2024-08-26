@@ -34,7 +34,6 @@ from DataModels import (
 )
 from typing import Union
 
-# set_env_variable("TEST_IMAGE", "test_images") # FIXME: for testing. delete!
 
 T_SLEEP = 1 / default_from_env("FRAMES_PER_SECOND", 10)
 PIXEL_FORMAT = default_from_env("PIXEL_TYPE", None)
