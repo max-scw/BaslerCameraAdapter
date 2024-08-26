@@ -21,7 +21,7 @@ from timeit import default_timer
 # custom packages
 from BaslerCamera import BaslerCamera
 from BaslerCameraThread import CameraThread
-from utils import default_from_env, setup_logging
+from utils import default_from_env, setup_logging, set_env_variable
 from utils_fastapi import setup_prometheus_metrics, default_fastapi_setup
 
 from DataModels import (
@@ -34,6 +34,7 @@ from DataModels import (
 )
 from typing import Union
 
+set_env_variable("TEST_IMAGE_PATH", "test_images") # FIXME: for testing. delete!
 
 T_SLEEP = 1 / default_from_env("FRAMES_PER_SECOND", 10)
 PIXEL_FORMAT = default_from_env("PIXEL_TYPE", None)
@@ -235,7 +236,7 @@ def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> 
                 img.save(p2img, format="PNG", quality=photo_params.quality)
 
             # set test picture to camera
-            cam.set_test_picture(p2img)
+            cam.test_picture = p2img
 
     logger.debug(f"Getting camera object took {(default_timer() - t0) * 1000:.4g} ms")
     return cam

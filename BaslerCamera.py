@@ -2,10 +2,11 @@ import numpy as np
 from pypylon import pylon
 from timeit import default_timer
 from pathlib import Path
+from PIL import Image
 
 import re
 
-from typing import Union, Literal, Any, List, Dict
+from typing import Union, Literal, Any, List, Dict, Tuple
 
 from DataModels import (
     PixelType,
@@ -307,6 +308,9 @@ class BaslerCamera:
         # open connection to camera
         self.open()
 
+        # set pixel formta
+        self.pixel_format = self._pixel_format
+
         if not self.is_emulated:
             # camera is not emulated
             # set parameters
@@ -314,7 +318,6 @@ class BaslerCamera:
             self.destination_ip_address = self._destination_ip_address
             self.destination_port = self._destination_port
             self.acquisition_mode = self._acquisition_mode
-            self.pixel_format = self._pixel_format
 
             params = ["transmission_type", "destination_ip_address", "destination_port",
                       "acquisition_mode", "pixel_format"]
@@ -513,17 +516,63 @@ class BaslerCamera:
                 _, info[ky] = device_info.GetPropertyValue(ky)
         return info
 
-    def set_test_picture(self, path_to_image: Union[Path, str] = None) -> bool:
-        if path_to_image and (Path(path_to_image).exists()):
-            self._camera.ImageFilename.SetValue(Path(path_to_image).as_posix())
-            logger.debug(f"Test image of emulated camera was set to {self._camera.ImageFilename.GetValue()}.")
+    # Test picture
+    @property
+    def test_picture(self) -> str:
+        """Gets the current value of the current test picture"""
+        return self._camera.ImageFilename.GetValue()
+
+    @test_picture.setter
+    def test_picture(self, image: Union[Path, str] = None) -> None:
+        re_test_picture = re.compile("^Testimage[1-6]$", re.ASCII)
+        if isinstance(image, str) and re_test_picture.match(image):
+            pass
+        elif image and (Path(image).exists()):
+            self._camera.ImageFilename.SetValue(Path(image).as_posix())
+            logger.debug(f"Test image of emulated camera was set to {self.test_picture}.")
+
             # enable image file test pattern
             self._camera.ImageFileMode = "On"
             # disable test pattern [image file is "real-image"]
             self._camera.TestImageSelector = "Off"
-            return True
-        else:
-            return False
+
+            # adjust image width and height
+            img = Image.open(image)
+            self.size = img.size
+
+    # width / height / size
+    @property
+    def width(self) -> int | None:
+        """Wrapper to get the width of the image that the camera returns"""
+        return self._camera.Width if self._camera else None
+
+    @width.setter
+    def width(self, value: int | None) -> None:
+        """Wrapper to set the width of the image that the camera returns"""
+        if self._camera and value and value > 0:
+            self._camera.Width = value
+
+    @property
+    def height(self) -> int | None:
+        """Wrapper to get the height of the image that the camera returns"""
+        return self._camera.Height if self._camera else None
+
+    @height.setter
+    def height(self, value: int | None) -> None:
+        """Wrapper to set the height of the image that the camera returns"""
+        if self._camera and value and value > 0:
+            self._camera.Height = value
+
+    @property
+    def size(self):
+        """Wrapper to get the (width, height) of the image that the camera returns"""
+        return self.width, self.height
+
+    @size.setter
+    def size(self, value: Tuple[int, int]) -> None:
+        """Wrapper to set the (width, height) of the image that the camera returns"""
+        if value and len(value) >= 2:
+            self.width, self.height = value
 
     def take_photo(
             self,
