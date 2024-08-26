@@ -1,5 +1,6 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, FastAPI
 from fastapi.responses import FileResponse, Response
+from contextlib import asynccontextmanager
 
 import uvicorn
 
@@ -9,7 +10,6 @@ import io
 from PIL import Image
 
 import signal
-import sys
 
 from pypylon.pylon import TimeoutException
 
@@ -34,7 +34,7 @@ from DataModels import (
 )
 from typing import Union
 
-set_env_variable("TEST_IMAGE_PATH", "test_images") # FIXME: for testing. delete!
+# set_env_variable("TEST_IMAGE", "test_images") # FIXME: for testing. delete!
 
 T_SLEEP = 1 / default_from_env("FRAMES_PER_SECOND", 10)
 PIXEL_FORMAT = default_from_env("PIXEL_TYPE", None)
@@ -45,6 +45,16 @@ CAMERA_THREAD: CameraThread = None
 
 # Setup logging
 logger = setup_logging(__name__)
+
+
+# lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting FastAPI ...")
+    yield
+    logger.info("Shutting down ...")
+    close_cameras()
+
 
 # define endpoints
 ENTRYPOINT_TEST = "/test"
@@ -76,7 +86,7 @@ license_info = {
 }
 
 # setup of fastAPI server
-app = default_fastapi_setup(title, summary, description, license_info, contact)
+app = default_fastapi_setup(title, summary, description, license_info, contact, lifespan=lifespan)
 # set up /metrics endpoint for prometheus
 EXECUTION_COUNTER, EXCEPTION_COUNTER, EXECUTION_TIMING = setup_prometheus_metrics(
     app,
@@ -164,8 +174,8 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
 def get_test_image() -> Union[Path, None]:
 
     # get path to image or folder / name pattern
-    image_path = default_from_env("TEST_IMAGE_PATH", "/home/app/test")
-    logger.debug(f"Return test image: TEST_IMAGE_PATH={image_path}")
+    image_path = default_from_env("TEST_IMAGE", "/home/app/test")
+    logger.debug(f"Return test image: TEST_IMAGE={image_path}")
 
     if image_path:
         if isinstance(image_path, list):
@@ -425,12 +435,6 @@ def return_test_image():
     else:
         # return None otherwise
         return None
-
-
-@app.on_event("shutdown")
-def on_shutdown():
-    logger.info("Shutting down ...")
-    close_cameras()
 
 
 # ---------- graceful stop

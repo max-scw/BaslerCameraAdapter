@@ -19,6 +19,7 @@ def default_fastapi_setup(
         description: str = None,
         license_info: Union[str, Dict[str, Any]] = None,
         contact: Union[str, Dict[str, Any]] = None,
+        lifespan=None,
 ):
 
     app = FastAPI(
@@ -26,7 +27,8 @@ def default_fastapi_setup(
         summary=summary,
         description=description,
         contact=contact,
-        license_info=license_info
+        license_info=license_info,
+        lifespan=lifespan,
     )
 
     # ----- home
