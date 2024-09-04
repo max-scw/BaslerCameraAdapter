@@ -481,7 +481,7 @@ class BaslerCamera:
                 logger.debug(f"Setting Pixel Format to {value}.")
                 self._camera.PixelFormat.SetValue(value)
             else:
-                logger.error("Pixel Format cannot be set to to 'Undefined'. Please choose a valid pixel format.")
+                logger.warning("Pixel Format cannot be set to to 'Undefined'. Please choose a valid pixel format.")
 
     def get_camera_info(self) -> dict:
         if self._camera:
