@@ -308,7 +308,7 @@ class BaslerCamera:
         # open connection to camera
         self.open()
 
-        # set pixel formta
+        # set pixel format
         self.pixel_format = self._pixel_format
 
         if not self.is_emulated:
