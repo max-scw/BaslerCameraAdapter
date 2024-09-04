@@ -22,6 +22,7 @@ from timeit import default_timer
 from BaslerCamera import BaslerCamera
 from BaslerCameraThread import CameraThread
 from utils import default_from_env, setup_logging, set_env_variable
+# set_env_variable("LOGGING_LEVEL", "DEBUG")  # FIXME: for debugging only
 from utils_fastapi import setup_prometheus_metrics, default_fastapi_setup
 
 from DataModels import (
@@ -34,7 +35,7 @@ from DataModels import (
 )
 from typing import Union
 
-
+# set_env_variable("TEST_IMAGE", "./test_images")  # FIXME: for debugging only
 T_SLEEP = 1 / default_from_env("FRAMES_PER_SECOND", 10)
 PIXEL_FORMAT = default_from_env("PIXEL_TYPE", None)
 
@@ -313,8 +314,18 @@ def take_picture(
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
     logger.debug(f"Image.size: {im.size}")
-    if photo_params.rotation_angle != 0:
-        im.rotate(angle=photo_params.rotation_angle, expand=photo_params.rotation_expand)
+    # rotate image
+    rotate_map = {
+        90: Image.ROTATE_90,
+        180: Image.ROTATE_180,
+        270: Image.ROTATE_270
+    }
+    if photo_params.rotation_angle in rotate_map:
+        im = im.transpose(rotate_map[int(photo_params.rotation_angle)])
+        logger.debug(f"Image.size (rotate={photo_params.rotation_angle}): {im.size}")
+    elif photo_params.rotation_angle != 0:
+        im = im.rotate(angle=photo_params.rotation_angle, expand=photo_params.rotation_expand)
+        logger.debug(f"Image.size (rotate={photo_params.rotation_angle}, expand={photo_params.rotation_expand}): {im.size}")
 
     with io.BytesIO() as buf:
         im.save(buf, format=photo_params.format, quality=photo_params.quality)
