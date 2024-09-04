@@ -314,28 +314,48 @@ def take_picture(
     # save image to an in-memory bytes buffer
     im = Image.fromarray(image_array)
     logger.debug(f"Image.size: {im.size}")
-    # rotate image
-    rotate_map = {
-        90: Image.ROTATE_90,
-        180: Image.ROTATE_180,
-        270: Image.ROTATE_270
-    }
-    if photo_params.rotation_angle in rotate_map:
-        im = im.transpose(rotate_map[int(photo_params.rotation_angle)])
-        logger.debug(f"Image.size (rotate={photo_params.rotation_angle}): {im.size}")
-    elif photo_params.rotation_angle != 0:
-        im = im.rotate(angle=photo_params.rotation_angle, expand=photo_params.rotation_expand)
-        logger.debug(f"Image.size (rotate={photo_params.rotation_angle}, expand={photo_params.rotation_expand}): {im.size}")
 
+    # crop image to region of interest (before rotating the image)
+    if (photo_params.roi_left > 0) or (photo_params.roi_right != 1) or (photo_params.roi_top > 0) or (photo_params.roi_bottom != 0):
+        dimensions = [photo_params.roi_left, photo_params.roi_top, photo_params.roi_right, photo_params.roi_bottom]
+        sz = im.size * 2
+
+        # to absolute dimensions
+        dimensions_abs = [
+            int(0 if d < 0 else d * s if d <= 1 else d)
+            for d, s in zip(dimensions, sz)
+        ]
+        logger.debug(f"Cropping image to {dimensions_abs}.")
+        im = im.crop(dimensions_abs)
+        # add timing
+        t.append(("Crop image", default_timer()))
+
+    # rotate image
+    if photo_params.rotation_angle != 0:
+        rotate_map = {
+            90: Image.ROTATE_90,
+            180: Image.ROTATE_180,
+            270: Image.ROTATE_270
+        }
+        if photo_params.rotation_angle in rotate_map:
+            im = im.transpose(rotate_map[int(photo_params.rotation_angle)])
+        else:
+            # general rotation
+            im = im.rotate(angle=photo_params.rotation_angle, expand=photo_params.rotation_expand)
+
+        logger.debug(f"Image.size (rotate={photo_params.rotation_angle}, expand={photo_params.rotation_expand}): {im.size}")
+        # add timing
+        t.append(("Rotate image", default_timer()))
+
+    # image to bytes
     with io.BytesIO() as buf:
         im.save(buf, format=photo_params.format, quality=photo_params.quality)
         image_bytes = buf.getvalue()
     t.append(("Convert bytes to PIL image", default_timer()))
 
-    diff = {t[i][0]: (t[i][1] - t[i - 1][1]) * 1000 for i in range(1, len(t))}
+    diff = {t[i][0]: f"{(t[i][1] - t[i - 1][1]) * 1000:.4g} ms" for i in range(1, len(t))}
     logger.info(
-        f"take_picture({camera_params}, {photo_params}) took {diff} ms "
-        f"(total {(default_timer() - t0) * 1000:.4g} ms)."
+        f"take_picture({camera_params}, {photo_params}) took {(default_timer() - t0) * 1000:.4g} ms ({diff})."
     )
 
     return Response(
