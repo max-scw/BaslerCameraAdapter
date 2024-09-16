@@ -1,4 +1,5 @@
 # BaslerCameraAdapter
+
 Provides a Python-based web-server REST API to connect to a Basler camera (using PyPylon)
 
 It uses [*FastAPI*](https://fastapi.tiangolo.com/) to spin up a minimal web server that wraps the Python-package [pypylon](https://github.com/basler/pypylon) in a web-api.
@@ -9,6 +10,7 @@ The new sever can be packaged as a virtual (Docker) container. Find released ima
 
 
 ## Structure
+
 The repository is structured as follows:
 ``` 
 BaslerCameraAdapter
@@ -16,16 +18,19 @@ BaslerCameraAdapter
 |-- BaslerCamera.py <- python code to interact with a Basler camera
 |-- BaslerCameraAdapter.Dockerfile  <- Dockerfile for camera service
 |-- BaslerCameraThread.py  <- enables for continuous image acqusition by camera threading
+|-- DataModels.py  <- pydantic data models
 |-- docker-compose.yml  <- exemplatory docker-compose call
 |-- LICENSE
 |-- main.py  <- fastAPI server to communicate with the Basler camera
 |-- README.md
 |-- requirements.txt  <- pip requirements
-|-- utils_env_vars.py <- helper functions that provide the ability to configure the server
+|-- utils.py  <- helper functions that provide the ability to configure the server
+|-- utils_fastapi.py <- wrapper functions that provide a standardized interface for fastapi
 ```
 
 
 ## Configuration
+
 The default values to interact with a camera are configurable at startup by the following environment variables:
 
 | Environment variable    | data type | comment                                                              |
@@ -54,9 +59,10 @@ The default values to interact with a camera are configurable at startup by the 
 Note: The configuration is done once when loading the data models (the module [DataModels.py](DataModels.py)), i.e. at startup of the uvicorn server.
 
 ## Usage
+
 The default entrypoint (`/`) provides basic information but rather just assures that the server is up.
 
-![BaslerCameraAdapter_Entrypoint1.jpg](docs%2FBaslerCameraAdapter_Entrypoint1.jpg)
+![BaslerCameraAdapter_DefaultEntrypoint.jpg](docs%2FBaslerCameraAdapter_DefaultEntrypoint.jpg)
 
 See docs (endpoint `/docs`) for details. This endpoint is the charm of [*FastAPI*](https://fastapi.tiangolo.com/). 
 
@@ -70,7 +76,9 @@ The documentation is automatically created with [Swagger](https://swagger.io/) a
 
 
 ### Installation
+
 #### Python
+
 ````shell
 python ./main.py
 ````
@@ -81,23 +89,29 @@ uvicorn main:app --host=0.0.0.0 --port=5051
 
 
 #### Docker
+
 Use a virtualization engine like [docker](https://www.docker.com/) or [podman](https://podman.io/):
+
 ````shell
 docker build --tag=camera-adapter -f BaslerCameraAdapter.Dockerfile .
 ````
 or the corresponding compose plugins on the example file ([docker-compose.yml](docker-compose.yml)):
+
 ````shell
 docker compose up -d
 ````
 See example file for configuration options via environment variables.
 
 ## Acknowledgments / Disclaimer
+
 This project is no official project of [*Basler*](https://www.baslerweb.com).
 It relies on the official [*pypylon*](https://pypi.org/project/pypylon/) package which is available under the [BSD 3-Clause License](https://github.com/basler/pypylon/blob/master/LICENSE).
 
 
 ## Author
+
  - max-scw
 
 ## Status
+
 active
