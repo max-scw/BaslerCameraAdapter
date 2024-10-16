@@ -19,7 +19,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: maxscw/baslercameraadapter
+          images: maxscw/basler-camera-adapter
           tags: |
             type=ref,event=branch
             type=ref,event=tag
