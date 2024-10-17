@@ -136,10 +136,10 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
             if not CAMERA:
                 logger.debug("Camera not yet created and connected.")
                 flag_create_camera = True
-            elif any([vl != getattr(CAMERA, ky) for ky, vl in params.dict().items()]):
+            elif any([vl != getattr(CAMERA, ky) for ky, vl in params.model_dump().items()]):
                 changed_params = {
                     ky: (vl, getattr(CAMERA, ky))
-                    for ky, vl in params.dict().items() if vl != getattr(CAMERA, ky)
+                    for ky, vl in params.model_dump().items() if vl != getattr(CAMERA, ky)
                 }
                 logger.debug(f"Parameter(s) differ: {changed_params}")
                 flag_create_camera = True
@@ -154,7 +154,7 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
 
         t2 = default_timer()
         # create new instance
-        CAMERA = BaslerCamera(**params.dict())
+        CAMERA = BaslerCamera(**params.model_dump())
         t3 = default_timer()
         logger.debug(f"Creating BaslerCamera object took {(t3 - t2) * 1000:.4g} ms")
 
@@ -401,7 +401,7 @@ def get_camera_info(
 
         cam = get_basler_camera(
             BaslerCameraParams(
-                **camera_params.dict(),
+                **camera_params.model_dump(),
                 **add_params
             )
         )
