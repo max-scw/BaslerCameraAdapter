@@ -4,7 +4,7 @@
 FROM python:3.11-slim-bullseye
 
 # Metadata
-LABEL author=scw-max
+LABEL author=max-scw
 LABEL project=https://github.com/max-scw/BaslerCameraAdapter
 LABEL version=2024.4.18
 

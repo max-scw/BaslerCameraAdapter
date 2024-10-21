@@ -28,10 +28,10 @@ from utils_fastapi import setup_prometheus_metrics, default_fastapi_setup
 from DataModels import (
     BaslerCameraSettings,
     BaslerCameraParams,
-    PhotoParams,
+    ImageParams,
     BaslerCameraAtom,
     OutputImageFormat,
-    get_not_none_values
+    get_not_none_values, ImageParams
 )
 from typing import Union
 
@@ -198,14 +198,17 @@ def get_test_image() -> Union[Path, None]:
     return None
 
 
-def process_input_variables(camera_params: BaslerCameraParams, photo_params: PhotoParams):
+def process_input_variables(
+        camera_params: BaslerCameraParams,
+        image_params: ImageParams
+):
 
-    logger.debug(f"Process input variables: camera={camera_params}, photo={photo_params}")
+    logger.debug(f"Process input variables: camera={camera_params}, image={image_params}")
 
-    # add functionality to emulate a camera
-    if photo_params.emulate_camera:
-        camera_params.serial_number = None
-        camera_params.ip_address = None
+    # # add functionality to emulate a camera
+    # if camera_params.emulate_camera:
+    #     camera_params.serial_number = None
+    #     camera_params.ip_address = None
 
     if camera_params.ip_address:
         camera_params.ip_address = camera_params.ip_address.strip("'").strip('"')
@@ -215,15 +218,18 @@ def process_input_variables(camera_params: BaslerCameraParams, photo_params: Pho
     if (camera_params.pixel_format == "Undefined") and PIXEL_FORMAT:
         camera_params.pixel_format = PIXEL_FORMAT
 
-    image_format = photo_params.format.strip(".")
+    image_format = image_params.format.strip(".")
     if image_format.lower() == "jpg":
         image_format = "jpeg"
 
-    photo_params.format = image_format
-    return camera_params, photo_params
+    image_params.format = image_format
+    return camera_params, image_params
 
 
-def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> BaslerCamera:
+def get_camera(
+        camera_params: BaslerCameraParams,
+        image_params: ImageParams
+) -> BaslerCamera:
 
     # extract parameter for a CameraParameter object
     t0 = default_timer()
@@ -232,7 +238,7 @@ def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> 
     )
     cam = get_basler_camera(cam_params)
 
-    if photo_params.emulate_camera:
+    if (camera_params.serial_number is None) and (camera_params.ip_address is None):
         p2img = get_test_image()
 
         if p2img is not None:
@@ -243,7 +249,7 @@ def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> 
                 img = Image.open(p2img)
                 # save as PNG
                 p2img = Path("./testimage.png")
-                img.save(p2img, format="PNG", quality=photo_params.quality)
+                img.save(p2img, format="PNG", quality=image_params.quality)
 
             # set test picture to camera
             cam.test_picture = p2img
@@ -254,16 +260,16 @@ def get_camera(camera_params: BaslerCameraParams, photo_params: PhotoParams) -> 
 
 def take_picture(
         camera_params: BaslerCameraParams = Depends(),
-        photo_params: PhotoParams = Depends(),
+        image_params: ImageParams = Depends(),
 ):
-    logger.debug(f"take_picture({camera_params}, {photo_params})")
+    logger.debug(f"take_picture({camera_params}, {image_params})")
 
     t0 = default_timer()
     t = [("start", default_timer())]
-    camera_params, photo_params = process_input_variables(camera_params, photo_params)
+    camera_params, image_params = process_input_variables(camera_params, image_params)
     t.append(("process_input_variables()", default_timer()))
 
-    cam = get_camera(camera_params, photo_params)
+    cam = get_camera(camera_params, image_params)
     t.append(("get_camera()", default_timer()))
 
     t1 = default_timer()
@@ -285,7 +291,7 @@ def take_picture(
         if start_thread:
             logger.debug(f"Starting new camera thread with {cam}.")
             # start camera thread
-            start_camera_thread(cam, photo_params.exposure_time_microseconds)
+            start_camera_thread(cam, camera_params.exposure_time_microseconds)
 
         # get image
         try:
@@ -296,14 +302,14 @@ def take_picture(
 
     else:
         try:
-            logger.debug(f"try cam.take_photo({photo_params.exposure_time_microseconds})")
-            image_array = cam.take_photo(photo_params.exposure_time_microseconds)
+            logger.debug(f"try cam.take_photo({camera_params.exposure_time_microseconds})")
+            image_array = cam.take_photo(camera_params.exposure_time_microseconds)
         except TimeoutException as ex:
             cam.reconnect()
-            logger.error(f"TimeoutException: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam} with {ex}")
+            logger.error(f"TimeoutException: cam.take_photo({camera_params.exposure_time_microseconds}) at {cam} with {ex}")
         except Exception as ex:
             cam.disconnect()
-            logger.error(f"Exception: cam.take_photo({photo_params.exposure_time_microseconds}) at {cam} with {ex}")
+            logger.error(f"Exception: cam.take_photo({camera_params.exposure_time_microseconds}) at {cam} with {ex}")
     logger.debug(f"Taking a photo took {(default_timer() - t1) * 1000:.4g} ms")
     t.append(("take photo", default_timer()))
 
@@ -316,8 +322,8 @@ def take_picture(
     logger.debug(f"Image.size: {im.size}")
 
     # crop image to region of interest (before rotating the image)
-    if (photo_params.roi_left > 0) or (photo_params.roi_right != 1) or (photo_params.roi_top > 0) or (photo_params.roi_bottom != 0):
-        dimensions = [photo_params.roi_left, photo_params.roi_top, photo_params.roi_right, photo_params.roi_bottom]
+    if (image_params.roi_left > 0) or (image_params.roi_right != 1) or (image_params.roi_top > 0) or (image_params.roi_bottom != 0):
+        dimensions = [image_params.roi_left, image_params.roi_top, image_params.roi_right, image_params.roi_bottom]
         sz = im.size * 2
 
         # to absolute dimensions
@@ -331,36 +337,36 @@ def take_picture(
         t.append(("Crop image", default_timer()))
 
     # rotate image
-    if photo_params.rotation_angle != 0:
+    if image_params.rotation_angle != 0:
         rotate_map = {
             90: Image.ROTATE_90,
             180: Image.ROTATE_180,
             270: Image.ROTATE_270
         }
-        if photo_params.rotation_angle in rotate_map:
-            im = im.transpose(rotate_map[int(photo_params.rotation_angle)])
+        if image_params.rotation_angle in rotate_map:
+            im = im.transpose(rotate_map[int(image_params.rotation_angle)])
         else:
             # general rotation
-            im = im.rotate(angle=photo_params.rotation_angle, expand=photo_params.rotation_expand)
+            im = im.rotate(angle=image_params.rotation_angle, expand=image_params.rotation_expand)
 
-        logger.debug(f"Image.size (rotate={photo_params.rotation_angle}, expand={photo_params.rotation_expand}): {im.size}")
+        logger.debug(f"Image.size (rotate={image_params.rotation_angle}, expand={image_params.rotation_expand}): {im.size}")
         # add timing
         t.append(("Rotate image", default_timer()))
 
     # image to bytes
     with io.BytesIO() as buf:
-        im.save(buf, format=photo_params.format, quality=photo_params.quality)
+        im.save(buf, format=image_params.format, quality=image_params.quality)
         image_bytes = buf.getvalue()
     t.append(("Convert bytes to PIL image", default_timer()))
 
     diff = {t[i][0]: f"{(t[i][1] - t[i - 1][1]) * 1000:.4g} ms" for i in range(1, len(t))}
     logger.info(
-        f"take_picture({camera_params}, {photo_params}) took {(default_timer() - t0) * 1000:.4g} ms ({diff})."
+        f"take_picture({camera_params}, {image_params}) took {(default_timer() - t0) * 1000:.4g} ms ({diff})."
     )
 
     return Response(
         content=image_bytes,
-        media_type=f"image/{photo_params.format}"
+        media_type=f"image/{image_params.format}"
     )
 
 
@@ -370,17 +376,17 @@ def take_picture(
 @EXCEPTION_COUNTER[ENTRYPOINT_TAKE_PHOTO].count_exceptions()
 def take_single_photo(
         camera_params: BaslerCameraSettings = Depends(),
-        photo_params: PhotoParams = Depends()
+        image_params: ImageParams = Depends()
 ):
     # hardcode acquisition mode to single frame
     camera_params_ = BaslerCameraParams(
         **get_not_none_values(camera_params),
-        acquisition_mode="SingleFrame"
+        # acquisition_mode="SingleFrame"
     )
     # increment counter for /metrics endpoint
     EXECUTION_COUNTER[ENTRYPOINT_TAKE_PHOTO].inc()
     # function return
-    return take_picture(camera_params_, photo_params)
+    return take_picture(camera_params_, image_params)
 
 
 @app.get(ENTRYPOINT_CAMERA_INFO)
@@ -416,7 +422,7 @@ def get_camera_info(
 @EXCEPTION_COUNTER[ENTRYPOINT_GET_IMAGE].count_exceptions()
 def get_latest_photo(
         camera_params: BaslerCameraSettings = Depends(),
-        photo_params: PhotoParams = Depends()
+        image_params: ImageParams = Depends()
 ):
     # hardcode acquisition mode to continuous
     camera_params_ = BaslerCameraParams(
@@ -426,7 +432,7 @@ def get_latest_photo(
     # increment counter for /metrics endpoint
     EXECUTION_COUNTER[ENTRYPOINT_GET_IMAGE].inc()
     # function return
-    return take_picture(camera_params_, photo_params)
+    return take_picture(camera_params_, image_params)
 
 
 @app.get(ENTRYPOINT_BASLER_CLOSE)

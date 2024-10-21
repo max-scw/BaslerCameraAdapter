@@ -22,3 +22,21 @@ services:
       - 3956:3956
       - 46000:46000/udp  # set Streaming Port to fixed value with pylonViewer
       - 5005:5050  # external access port | for debugging
+
+  frontend-service:
+    # container / image
+    container_name: frontend
+    build:
+      context: ./
+      dockerfile: Frontend.Dockerfile
+    image: maxscw/frontend
+    # restart policy
+    restart: unless-stopped
+    # customization
+    environment:
+      - TZ=Europe/Berlin
+      # customize
+      - LOGGING_LEVEL=DEBUG
+      - ADDRESS_BACKEND=http://camera-adapter:5050/basler/single-frame-acquisition/take-photo
+    ports:
+      - 5006:8501

@@ -219,7 +219,8 @@ class BaslerCamera:
             destination_port: int = None,
             acquisition_mode: AcquisitionMode = "SingleFrame",
             pixel_format: PixelType = "Undefined",
-            convert_to_format: OutputImageFormat = "null"
+            convert_to_format: OutputImageFormat = "null",
+            exposure_time_microseconds: int = None,
     ) -> None:
         self.serial_number = serial_number
         self.ip_address = ip_address
@@ -231,12 +232,13 @@ class BaslerCamera:
         # initialize camera attribute
         self._camera = None
         # properties
-
         self._transmission_type = transmission_type
         self._destination_ip_address = destination_ip_address
         self._destination_port = destination_port
         self._acquisition_mode = acquisition_mode
         self._pixel_format = pixel_format
+
+        self._exposure_time_microseconds = exposure_time_microseconds
 
         logger.debug(f"Init {self}")
 
@@ -318,6 +320,8 @@ class BaslerCamera:
             self.destination_ip_address = self._destination_ip_address
             self.destination_port = self._destination_port
             self.acquisition_mode = self._acquisition_mode
+
+            self.exposure_time = self._exposure_time_microseconds
 
             params = ["transmission_type", "destination_ip_address", "destination_port",
                       "acquisition_mode", "pixel_format"]

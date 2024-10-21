@@ -124,7 +124,7 @@ def get_logging_level(key: str = "LOGGING_LEVEL", default: int = logging.INFO) -
 
 def setup_logging(
         name: str,
-        level: int = logging.INFO,
+        level: Union[str, int] = logging.INFO,
         use_env_log_level: bool = True,
         period_sec: int = 1
 ) -> logging.Logger:
