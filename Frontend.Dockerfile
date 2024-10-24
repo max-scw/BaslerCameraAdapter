@@ -16,7 +16,7 @@ RUN printf "deb https://deb.debian.org/debian bullseye main \
             deb https://security.debian.org/debian-security bullseye-security main \
             deb https://deb.debian.org/debian bullseye-updates main" > /etc/apt/sources.list
 
-
+RUN mkdir /data
 # new default user
 RUN useradd -ms /bin/bash appuser
 # Set the working directory
@@ -46,6 +46,7 @@ HEALTHCHECK --interval=30s --timeout=5s \
 # set to non-root user
 USER root
 RUN chown -R appuser:appuser /home/app
+RUN chown -R appuser:appuser /data
 USER appuser
 
 # Set the entrypoint script as the entrypoint for the container

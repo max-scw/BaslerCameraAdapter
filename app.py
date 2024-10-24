@@ -236,7 +236,7 @@ def main():
     # Create a button to save the image
     if save_image:
         # Save the image to the local file system
-        image_path = Path(get_env_variable("IMAGE_EXPORT_DIR", "", check_for_prefix=True)) / filename
+        image_path = Path(get_env_variable("IMAGE_EXPORT_DIR", "/data", check_for_prefix=True)) / filename
         image_path = image_path.with_suffix(f".{image_settings_map['Image Format Settings']['format']}")
         logger.debug(f"Saving image to {image_path.as_posix()}")
         st.session_state.image.save(image_path)
