@@ -208,6 +208,8 @@ def build_image_format_converter(
 
 
 class BaslerCamera:
+    __attr_exposure_time = None
+
     def __init__(
             self,# *BaslerCameraParams
             serial_number: int = None,
@@ -367,11 +369,34 @@ class BaslerCamera:
         """Flag whether a camera is emulated"""
         return (self.serial_number is None) and (self.ip_address is None)
 
+
+    def _get_attribute_key(self, attributes: List[str]) -> str:
+        """wrapper function to access attributes of the pylon camera object because they differ depending on the camera"""
+        attr_name = None
+        for attr in attributes:
+            try:
+                camera_hasattr = hasattr(self._camera, attr)
+            except pylon.GenericException:
+                camera_hasattr = False
+
+            if camera_hasattr:
+                attr_name = attr
+                break
+
+        if attr_name:
+            return attr_name
+        else:
+            raise AttributeError(f"Camera has not attribute {' or '.join(attributes)}.")
+
     # exposure time
     @property
     def exposure_time(self):
         """Gets the exposure time in micro-seconds"""
-        return self._camera.ExposureTimeAbs.GetValue()
+
+        if self.__attr_exposure_time is None:
+            self.__attr_exposure_time = self._get_attribute_key(["ExposureTimeAbs", "ExposureTime"])
+
+        return getattr(self._camera, self.__attr_exposure_time).GetValue()
 
     @exposure_time.setter
     def exposure_time(self, value: float | None):
@@ -382,7 +407,7 @@ class BaslerCamera:
 
             if value != self.exposure_time:
                 logger.debug(f"Setting Exposure Time to {value}.")
-                self._camera.ExposureTimeAbs.SetValue(float(value))
+                getattr(self._camera, self.__attr_exposure_time).SetValue(float(value))
 
     # Transmission type
     @property
