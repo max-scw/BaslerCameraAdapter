@@ -91,7 +91,8 @@ PixelType = Literal[
 OutputImageFormat = Literal["RGB", "BGR", "Mono", "null"]
 AcquisitionMode = Literal["SingleFrame", "Continuous"]
 TransmissionType = Literal["Unicast", "Multicast", "Broadcast"]
-
+TriggerMode = Literal["FrameStart", "FrameEnd", "FrameActive", "AcquisitionStart", "FrameBurstEnd", "FrameBurstActive", "ExposureStart", "ExposureEnd", "ExposureActive", "LineStart", "Start", "End", "Active"]
+TriggerActivation = Literal["RisingEdge", "FallingEdge", "AnyEdge", "LevelHigh", "LevelLow"]
 
 def get_not_none_values(params: BaseModel) -> Dict[str, Any]:
     """returns the parameter of a Data Model but ignores keys that indicate undefined values."""

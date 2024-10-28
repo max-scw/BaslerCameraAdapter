@@ -12,7 +12,9 @@ from DataModels import (
     PixelType,
     OutputImageFormat,
     AcquisitionMode,
-    TransmissionType
+    TransmissionType,
+    TriggerMode,
+    TriggerActivation
 )
 from utils import set_env_variable, setup_logging
 
@@ -209,6 +211,7 @@ def build_image_format_converter(
 
 class BaslerCamera:
     __attr_exposure_time = None
+    __attr_trigger_delay = None
 
     def __init__(
             self,# *BaslerCameraParams
@@ -603,6 +606,59 @@ class BaslerCamera:
         if value and len(value) >= 2:
             self.width, self.height = value
 
+    # --- trigger
+    @property
+    def trigger_source(self) -> str:
+        """Wrapper to get the trigger source property"""
+        return self._camera.TriggerSource.GetValue()
+
+    @trigger_source.setter
+    def trigger_source(self, value: TriggerMode) -> None:
+        """Wrapper to set trigger source property"""
+        self._camera.TriggerSource.SetValue(value)
+
+    @property
+    def trigger_mode_on(self) -> bool:
+        """Wrapper to get the trigger mode property"""
+        return self._camera.TriggerSource.GetValue()
+
+    @trigger_mode_on.setter
+    def trigger_mode_on(self, value: bool) -> None:
+        """Wrapper to set trigger source property"""
+        self._camera.TriggerMode.SetValue("On" if value else "Off")
+
+    @property
+    def trigger_activation(self) -> TriggerActivation:
+        """Wrapper to get the trigger activation property"""
+        return self._camera.TriggerActivation.GetValue()
+
+    @trigger_activation.setter
+    def trigger_activation(self, value: TriggerActivation) -> None:
+        """Wrapper to set trigger activation property"""
+        self._camera.TriggerActivation.SetValue(value)
+
+    @property
+    def trigger_delay(self) -> int:
+        """Wrapper to get the trigger delay micro-seconds"""
+
+        if self.__attr_trigger_delay is None:
+            self.__attr_trigger_delay = self._get_attribute_key(["TriggerDelayAbs", "TriggerDelay"])
+
+        return getattr(self._camera, self.__attr_trigger_delay).GetValue()
+
+    @trigger_delay.setter
+    def trigger_delay(self, value: Union[int, float]) -> None:
+        """Wrapper to set trigger delay in micro-seconds"""
+        if value:
+            if not isinstance(value, (float, int)):
+                raise TypeError(f"Invalid trigger delay time type: {value} (micro-seconds). Must be an Integer or Float.")
+
+            if value != self.trigger_delay:
+                logger.debug(f"Setting Trigger delay to {value}.")
+                getattr(self._camera, self.__attr_trigger_delay).SetValue(float(value))
+
+
+    # ---- photo
     def take_photo(
             self,
             exposure_time_microseconds: int = None,
