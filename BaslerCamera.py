@@ -582,6 +582,7 @@ class BaslerCamera:
     def width(self, value: int | None) -> None:
         """Wrapper to set the width of the image that the camera returns"""
         if self._camera and value and value > 0:
+            logger.debug(f"Setting Width to {value} px.")
             self._camera.Width = value
 
     @property
@@ -593,6 +594,7 @@ class BaslerCamera:
     def height(self, value: int | None) -> None:
         """Wrapper to set the height of the image that the camera returns"""
         if self._camera and value and value > 0:
+            logger.debug(f"Setting Height to {value} px.")
             self._camera.Height = value
 
     @property
@@ -604,6 +606,7 @@ class BaslerCamera:
     def size(self, value: Tuple[int, int]) -> None:
         """Wrapper to set the (width, height) of the image that the camera returns"""
         if value and len(value) >= 2:
+            logger.debug(f"Setting Size to {value} px.")
             self.width, self.height = value
 
     # --- trigger
@@ -615,17 +618,31 @@ class BaslerCamera:
     @trigger_source.setter
     def trigger_source(self, value: TriggerMode) -> None:
         """Wrapper to set trigger source property"""
-        self._camera.TriggerSource.SetValue(value)
+        if value != self.trigger_source:
+            logger.debug(f"Setting Trigger Source to {value}.")
+            self._camera.TriggerSource.SetValue(value)
 
     @property
     def trigger_mode_on(self) -> bool:
         """Wrapper to get the trigger mode property"""
-        return self._camera.TriggerSource.GetValue()
+        return self.__trigger_mode_converter(self._camera.TriggerSource.GetValue())
+
+    @staticmethod
+    def __trigger_mode_converter(value: bool | str) -> bool | str:
+        if isinstance(value, bool):
+            return "On" if value else "Off"
+        elif isinstance(value, str):
+            return True if value == "On" else False
+        else:
+            raise TypeError(f"Invalid trigger mode: {value}. Must be a boolean or string.")
 
     @trigger_mode_on.setter
     def trigger_mode_on(self, value: bool) -> None:
         """Wrapper to set trigger source property"""
-        self._camera.TriggerMode.SetValue("On" if value else "Off")
+        if value != self.trigger_mode_on:
+            value_ = self.__trigger_mode_converter(value)
+            logger.debug(f"Setting Trigger Mode to {value_}.")
+            self._camera.TriggerMode.SetValue(value_)
 
     @property
     def trigger_activation(self) -> TriggerActivation:
@@ -635,7 +652,9 @@ class BaslerCamera:
     @trigger_activation.setter
     def trigger_activation(self, value: TriggerActivation) -> None:
         """Wrapper to set trigger activation property"""
-        self._camera.TriggerActivation.SetValue(value)
+        if value != self.trigger_activation:
+            logger.debug(f"Setting Trigger Activation to {value}.")
+            self._camera.TriggerActivation.SetValue(value)
 
     @property
     def trigger_delay(self) -> int:
@@ -654,7 +673,7 @@ class BaslerCamera:
                 raise TypeError(f"Invalid trigger delay time type: {value} (micro-seconds). Must be an Integer or Float.")
 
             if value != self.trigger_delay:
-                logger.debug(f"Setting Trigger delay to {value}.")
+                logger.debug(f"Setting Trigger delay to {value} micro-seconds.")
                 getattr(self._camera, self.__attr_trigger_delay).SetValue(float(value))
 
 
