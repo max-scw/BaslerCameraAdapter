@@ -249,17 +249,20 @@ class BaslerCamera:
 
     def __dict__(self) -> Dict[str, Any]:
         # key map from (local) attributes to better-readable names (that exist as properties)
+        key_map_gige = {
+            "_transmission_type": "transmission_type",
+            "_destination_ip_address": "destination_ip_address",
+            "_destination_port": "destination_port",
+        }
         key_map = {
             "serial_number": "serial_number",
             "ip_address": "ip_address",
             "subnet_mask": "subnet_mask",
             "timeout_ms": "timeout_ms",
-            "_transmission_type": "transmission_type",
-            "_destination_ip_address": "destination_ip_address",
-            "_destination_port": "destination_port",
             "_acquisition_mode": "acquisition_mode",
             "_pixel_format": "pixel_format",
-        }
+
+        } | key_map_gige if self.is_gige else {}
         return {vl: getattr(self, ky) for ky, vl in key_map.items()}
 
     def __repr__(self):
@@ -296,6 +299,21 @@ class BaslerCamera:
             logger.debug("Camera closed.")
         return not self.is_open
 
+    def __check_camera_type(self, char: str) -> bool | None:
+        name = self.name
+        if isinstance(name, str):
+            return name[-1].lower() == char
+        else:
+            return None
+
+    @property
+    def is_gige(self) -> bool | None:
+        return self.__check_camera_type("g")
+
+    @property
+    def is_usb(self) -> bool | None:
+        return self.__check_camera_type("c")
+
     def create_camera(self):  # -> BaslerCamera
         t0 = default_timer()
         self._camera = create_camera(
@@ -321,16 +339,15 @@ class BaslerCamera:
         if not self.is_emulated:
             # camera is not emulated
             # set parameters
-            self.transmission_type = self._transmission_type
-            self.destination_ip_address = self._destination_ip_address
-            self.destination_port = self._destination_port
+            if self.is_gige:
+                # GigE-specific configs. Attributes do not exist for USB cameras
+                self.transmission_type = self._transmission_type
+                self.destination_ip_address = self._destination_ip_address
+                self.destination_port = self._destination_port
+
             self.acquisition_mode = self._acquisition_mode
 
             self.exposure_time = self._exposure_time_microseconds
-
-            params = ["transmission_type", "destination_ip_address", "destination_port",
-                      "acquisition_mode", "pixel_format"]
-            logger.debug(f"Camera parameters set to: { {ky: getattr(self, ky) for ky in params} }")
 
         return self.is_open
 
@@ -371,7 +388,6 @@ class BaslerCamera:
     def is_emulated(self) -> bool:
         """Flag whether a camera is emulated"""
         return (self.serial_number is None) and (self.ip_address is None)
-
 
     def _get_attribute_key(self, attributes: List[str]) -> str:
         """wrapper function to access attributes of the pylon camera object because they differ depending on the camera"""
@@ -518,22 +534,35 @@ class BaslerCamera:
     def get_camera_info(self) -> dict:
         if self._camera:
             cam_info = self._camera.GetDeviceInfo()
-            info = {
-                "Name": cam_info.GetModelName(),
-                "IP": cam_info.GetIpAddress(),
-                "MAC": cam_info.GetMacAddress()
-            }
+
+            info = {"Name": cam_info.GetModelName()}
+            if self.is_usb:
+                pass
+            else:
+                info["IP"] = cam_info.GetIpAddress()
+                info["MAC"] = cam_info.GetMacAddress()
         else:
             info = {"Error": "No camera created yet."}
         return info
 
     @property
     def name(self) -> str | None:
-        info = self.get_camera_info()
-        if "Name" in info:
-            return "#".join((info["Name"], info["MAC"], info["IP"]))
+        """Wrapper to return the model name of the camera"""
+        if self._camera:
+            cam_info = self._camera.GetDeviceInfo()
+            return cam_info.GetModelName()
         else:
             return None
+
+    @property
+    def info_string(self) -> str | None:
+        """Wrapper to provide a nicely formated model name"""
+        if self._camera:
+            info = self.get_camera_info()
+            if "Name" in info:
+                return "#".join(list(info.values()))
+            else:
+                return None
 
     @property
     def device_info(self) -> dict:
