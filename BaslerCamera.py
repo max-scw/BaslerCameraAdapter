@@ -300,9 +300,23 @@ class BaslerCamera:
         return not self.is_open
 
     def __check_camera_type(self, char: str) -> bool | None:
+        # examples = [
+        #     "r2L2048-58gm",
+        #     "boA4504-100cm",
+        #     "acA2440-75umMED",
+        #     "a2A5328-4gcPRO",
+        #     "a2A5328-35cm",
+        #     "a2A2840-48umUV",
+        #     "a2A2840-67g5mBAS",
+        #     "a2A2448-120cc"
+        # ]
         name = self.name
         if isinstance(name, str):
-            return name[-1].lower() == char
+            re_com_type = re.compile("-\d+[a-z]", re.ASCII)
+
+            m = re_com_type.search(name)
+            if m:
+                return m.group()[-1] == char
         else:
             return None
 
@@ -729,7 +743,7 @@ class BaslerCamera:
         self.stop_grabbing()
 
         # Wait for a grab result
-        logger.debug(f"BaslerCamera.take_photo(): GrabOne({self.timeout_ms})")
+        logger.debug(f"BaslerCamera.take_photo(): GrabOne({self.timeout_ms}) (milli-seconds)")
         grab_result = self._camera.GrabOne(self.timeout_ms, timeout_handling)  # timeout in milliseconds
 
         logger.debug(f"BaslerCamera.take_photo(): GrabOne({self.timeout_ms}) succeeded: {grab_result.GrabSucceeded()}")
