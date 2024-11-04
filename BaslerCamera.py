@@ -344,9 +344,9 @@ class BaslerCamera:
                 self.transmission_type = self._transmission_type
                 self.destination_ip_address = self._destination_ip_address
                 self.destination_port = self._destination_port
-
+            # set default acquisition mode
             self.acquisition_mode = self._acquisition_mode
-
+            # set default exposure time
             self.exposure_time = self._exposure_time_microseconds
 
         return self.is_open
@@ -420,9 +420,11 @@ class BaslerCamera:
     @exposure_time.setter
     def exposure_time(self, value: float | None):
         """Sets the exposure time in micro-seconds"""
-        if value:
+        if value is not None:
             if not isinstance(value, (float, int)):
                 raise TypeError(f"Invalid exposure time type: {value} (micro-seconds). Must be an Integer or Float.")
+            elif value < 0:
+                raise ValueError(f"Exposure time must be a positive value but was: {value} (micro-seconds).")
 
             if value != self.exposure_time:
                 logger.debug(f"Setting Exposure Time to {value}.")
