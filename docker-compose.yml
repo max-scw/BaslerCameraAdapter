@@ -18,6 +18,8 @@ services:
 #      - TEST_IMAGE_PATH=/home/app/test/*.png
 #    volumes:
 #      - ./testimages:/home/app/test
+    devices:
+      - /dev/bus/usb/:/dev/bus/usb/
     ports:
       - 3956:3956
       - 46000:46000/udp  # set Streaming Port to fixed value with pylonViewer
