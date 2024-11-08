@@ -28,7 +28,6 @@ jobs:
           images: maxscw/basler-camera-adapter
           tags: |
             latest
-            engine
             sha$${{ github.sha }}
             sha$${{ env.SHORT_COMMIT }}
             date$${{ env.CURRENT_DATE }}

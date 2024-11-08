@@ -470,10 +470,12 @@ if __name__ == "__main__":
         uvicorn.run(
             app=app,
             port=5050,
+            host="0.0.0.0",
             access_log=True,
             log_config=None,  # Uses the logging configuration in the application
             ssl_keyfile=default_from_env("SSL_KEYFILE", None), # "server.key"
             ssl_certfile=default_from_env("SSL_CERTIFICATE", None),  # "server.crt"
         )
-    except Exception:
+    except Exception as ex:
         close_cameras()
+        raise ex
