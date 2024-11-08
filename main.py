@@ -62,11 +62,8 @@ ENTRYPOINT_TEST_IMAGE = ENTRYPOINT_TEST + "/image"
 ENTRYPOINT_TEST_NEGATE = ENTRYPOINT_TEST + "/negate"
 
 ENTRYPOINT_BASLER = "/basler"
-ENTRYPOINT_BASLER_SINGLE_FRAME = ENTRYPOINT_BASLER + "/single-frame-acquisition"
-ENTRYPOINT_TAKE_PHOTO = ENTRYPOINT_BASLER_SINGLE_FRAME + "/take-photo"
+ENTRYPOINT_TAKE_PHOTO = ENTRYPOINT_BASLER + "/take-photo"
 ENTRYPOINT_CAMERA_INFO = ENTRYPOINT_BASLER + "/get-camera-info"
-ENTRYPOINT_BASLER_CONTINUOUS_FRAME = ENTRYPOINT_BASLER + "/continuous-acquisition"
-ENTRYPOINT_GET_IMAGE = ENTRYPOINT_BASLER_CONTINUOUS_FRAME + "/get-image"
 ENTRYPOINT_BASLER_CLOSE = ENTRYPOINT_BASLER + "/close"
 
 # set up fastAPI
@@ -92,7 +89,6 @@ EXECUTION_COUNTER, EXCEPTION_COUNTER, EXECUTION_TIMING = setup_prometheus_metric
     app,
     entrypoints_to_track=[
         ENTRYPOINT_TAKE_PHOTO,
-        ENTRYPOINT_GET_IMAGE,
         ENTRYPOINT_CAMERA_INFO
     ]
 )
@@ -374,14 +370,12 @@ def take_picture(
 @app.get(ENTRYPOINT_TAKE_PHOTO)
 @EXECUTION_TIMING[ENTRYPOINT_TAKE_PHOTO].time()
 @EXCEPTION_COUNTER[ENTRYPOINT_TAKE_PHOTO].count_exceptions()
-def take_single_photo(
+def take_photo(
         camera_params: BaslerCameraSettings = Depends(),
         image_params: ImageParams = Depends()
 ):
-    # hardcode acquisition mode to single frame
     camera_params_ = BaslerCameraParams(
         **get_not_none_values(camera_params),
-        # acquisition_mode="SingleFrame"
     )
     # increment counter for /metrics endpoint
     EXECUTION_COUNTER[ENTRYPOINT_TAKE_PHOTO].inc()
@@ -415,24 +409,6 @@ def get_camera_info(
     EXECUTION_COUNTER[ENTRYPOINT_CAMERA_INFO].inc()
     # function return
     return cam.get_camera_info()
-
-
-@app.get(ENTRYPOINT_GET_IMAGE)
-@EXECUTION_TIMING[ENTRYPOINT_GET_IMAGE].time()
-@EXCEPTION_COUNTER[ENTRYPOINT_GET_IMAGE].count_exceptions()
-def get_latest_photo(
-        camera_params: BaslerCameraSettings = Depends(),
-        image_params: ImageParams = Depends()
-):
-    # hardcode acquisition mode to continuous
-    camera_params_ = BaslerCameraParams(
-        **get_not_none_values(camera_params),
-        acquisition_mode="Continuous"
-    )
-    # increment counter for /metrics endpoint
-    EXECUTION_COUNTER[ENTRYPOINT_GET_IMAGE].inc()
-    # function return
-    return take_picture(camera_params_, image_params)
 
 
 @app.get(ENTRYPOINT_BASLER_CLOSE)
