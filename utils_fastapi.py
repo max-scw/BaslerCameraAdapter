@@ -1,16 +1,40 @@
 import fastapi
 from fastapi import FastAPI
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 # from fastapi_offline import FastAPIOffline as FastAPI
 from prometheus_client import make_asgi_app, Counter, Gauge
 from datetime import datetime
 # versions / info
 import sys
 
+from utils import get_env_variable, set_env_variable
 
-from typing import Union, Tuple, List, Dict, Any
+
+from typing import Union, Tuple, List, Dict, Any, Optional
 
 
 DATETIME_INIT = datetime.now()
+# List of correct access tokens
+# set_env_variable("ACCESS_TOKENS", "SDFjgsrfoja30uawpfkSDFJSLdof2")
+ACCESS_TOKENS = get_env_variable("ACCESS_TOKENS", [])
+ACCESS_TOKENS = [ACCESS_TOKENS] if isinstance(ACCESS_TOKENS, str) else ACCESS_TOKENS
+
+# Create a security scheme for checking access tokens
+security_scheme = HTTPBearer()
+
+# Function to check access tokens
+def check_access_token(token: HTTPAuthorizationCredentials = Depends(security_scheme)):
+    print("check_access_token")
+    if len(ACCESS_TOKENS) >= 0:
+        print(f"Token={token.credentials} in {ACCESS_TOKENS}")
+        if token.credentials not in ACCESS_TOKENS:
+            raise HTTPException(status_code=401, detail="Invalid access token")
+        return token.credentials
+    # else:
+    #     return True
+
+AccessToken: Optional[HTTPAuthorizationCredentials] = Depends(check_access_token) if ACCESS_TOKENS else None
 
 
 def default_fastapi_setup(
@@ -33,7 +57,7 @@ def default_fastapi_setup(
 
     # ----- home
     @app.get("/")
-    async def home():
+    async def home(token: HTTPAuthorizationCredentials = AccessToken):
         return {
             "Title": title,
             "Description": summary,
@@ -46,6 +70,19 @@ def default_fastapi_setup(
             "Impress": contact,
             "Startup date": DATETIME_INIT
         }
+
+    # ----- SWAGGER
+    if ACCESS_TOKENS:
+        # Create a router for the Swagger endpoint
+        from fastapi.openapi.docs import get_swagger_ui_html
+        from fastapi.openapi.utils import get_openapi
+        @app.get("/docs", dependencies=[AccessToken])
+        async def get_docs():
+            return get_swagger_ui_html(openapi_url="/openapi.json", title=f"{title} docs")
+
+        @app.get("/openapi.json", dependencies=[AccessToken])
+        async def get_openapi():
+            return get_openapi(routes=app.routes)
 
     return app
 
@@ -75,3 +112,5 @@ def setup_prometheus_metrics(
             documentation=f"Latest execution time of the entry point {ep}."
         )
     return execution_counter, exception_counter, execution_timing
+
+

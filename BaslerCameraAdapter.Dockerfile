@@ -49,4 +49,5 @@ EXPOSE 5050
 
 # FOR DEBUGGING
 #ENTRYPOINT ["tail", "-f", "/dev/null"]
-ENTRYPOINT ["uvicorn", "main:app", "--host=0.0.0.0", "--port=5050"]
+#ENTRYPOINT ["uvicorn", "main:app", "--host=0.0.0.0", "--port=5050"]
+ENTRYPOINT ["python", "main.py"]

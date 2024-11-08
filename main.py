@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, FastAPI
 from fastapi.responses import FileResponse, Response
+from fastapi.security import HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -23,7 +24,7 @@ from BaslerCamera import BaslerCamera
 from BaslerCameraThread import CameraThread
 from utils import default_from_env, setup_logging, set_env_variable
 # set_env_variable("LOGGING_LEVEL", "DEBUG")  # FIXME: for debugging only
-from utils_fastapi import setup_prometheus_metrics, default_fastapi_setup
+from utils_fastapi import setup_prometheus_metrics, default_fastapi_setup, AccessToken
 
 from DataModels import (
     BaslerCameraSettings,
@@ -372,7 +373,8 @@ def take_picture(
 @EXCEPTION_COUNTER[ENTRYPOINT_TAKE_PHOTO].count_exceptions()
 def take_photo(
         camera_params: BaslerCameraSettings = Depends(),
-        image_params: ImageParams = Depends()
+        image_params: ImageParams = Depends(),
+        token: HTTPAuthorizationCredentials = AccessToken
 ):
     camera_params_ = BaslerCameraParams(
         **get_not_none_values(camera_params),
@@ -387,7 +389,8 @@ def take_photo(
 # @EXECUTION_TIMING[ENTRYPOINT_CAMERA_INFO].time()
 # @EXCEPTION_COUNTER[ENTRYPOINT_CAMERA_INFO].count_exceptions()
 def get_camera_info(
-    camera_params: BaslerCameraAtom = Depends()
+    camera_params: BaslerCameraAtom = Depends(),
+    token: HTTPAuthorizationCredentials = AccessToken
 ):
     with (EXECUTION_TIMING[ENTRYPOINT_CAMERA_INFO].time() and
           EXCEPTION_COUNTER[ENTRYPOINT_CAMERA_INFO].count_exceptions()):
@@ -412,7 +415,7 @@ def get_camera_info(
 
 
 @app.get(ENTRYPOINT_BASLER_CLOSE)
-def close_cameras():
+def close_cameras(token: HTTPAuthorizationCredentials = AccessToken):
     global CAMERA
     if isinstance(CAMERA, BaslerCamera) and CAMERA.is_open:
         logger.debug("Camera was open.")
@@ -430,14 +433,14 @@ def close_cameras():
 
 # ----- TEST FUNCTIONS
 @app.get(ENTRYPOINT_TEST_NEGATE)
-def negate(boolean: bool):
+def negate(boolean: bool, token: HTTPAuthorizationCredentials = AccessToken):
     # global COUNTER
     EXECUTION_COUNTER[ENTRYPOINT_TEST_NEGATE].inc()
     return not boolean
 
 
 @app.get(ENTRYPOINT_TEST_IMAGE)
-def return_test_image():
+def return_test_image(token: HTTPAuthorizationCredentials = AccessToken):
     p2img = get_test_image()
     if isinstance(p2img, Path):
         return FileResponse(
@@ -466,9 +469,11 @@ if __name__ == "__main__":
     try:
         uvicorn.run(
             app=app,
-            port=5051,
+            port=5050,
             access_log=True,
-            log_config=None  # Uses the logging configuration in the application
+            log_config=None,  # Uses the logging configuration in the application
+            ssl_keyfile=default_from_env("SSL_KEYFILE", None), # "server.key"
+            ssl_certfile=default_from_env("SSL_CERTIFICATE", None),  # "server.crt"
         )
     except Exception:
         close_cameras()
