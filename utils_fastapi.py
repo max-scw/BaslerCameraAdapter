@@ -1,9 +1,10 @@
 import fastapi
 from fastapi import FastAPI
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.openapi.docs import get_swagger_ui_html
 # from fastapi_offline import FastAPIOffline as FastAPI
-from prometheus_client import make_asgi_app, Counter, Gauge
+from prometheus_client import make_asgi_app, Counter, Gauge, generate_latest
 from datetime import datetime
 # versions / info
 import sys
@@ -16,7 +17,6 @@ from typing import Union, Tuple, List, Dict, Any, Optional
 
 DATETIME_INIT = datetime.now()
 # List of correct access tokens
-# set_env_variable("ACCESS_TOKENS", "SDFjgsrfoja30uawpfkSDFJSLdof2")
 ACCESS_TOKENS = get_env_variable("ACCESS_TOKENS", [])
 ACCESS_TOKENS = [ACCESS_TOKENS] if isinstance(ACCESS_TOKENS, str) else ACCESS_TOKENS
 
@@ -24,17 +24,12 @@ ACCESS_TOKENS = [ACCESS_TOKENS] if isinstance(ACCESS_TOKENS, str) else ACCESS_TO
 security_scheme = HTTPBearer()
 
 # Function to check access tokens
-def check_access_token(token: HTTPAuthorizationCredentials = Depends(security_scheme)):
-    print("check_access_token")
-    if len(ACCESS_TOKENS) >= 0:
-        print(f"Token={token.credentials} in {ACCESS_TOKENS}")
-        if token.credentials not in ACCESS_TOKENS:
+async def check_access_token(token: Optional[str] = None):
+    if (len(ACCESS_TOKENS) > 0) and (token not in ACCESS_TOKENS):
             raise HTTPException(status_code=401, detail="Invalid access token")
-        return token.credentials
-    # else:
-    #     return True
 
-AccessToken: Optional[HTTPAuthorizationCredentials] = Depends(check_access_token) if ACCESS_TOKENS else None
+
+AccessToken: Optional[str] = Depends(check_access_token)
 
 
 def default_fastapi_setup(
@@ -53,11 +48,12 @@ def default_fastapi_setup(
         contact=contact,
         license_info=license_info,
         lifespan=lifespan,
+        docs_url=None
     )
 
     # ----- home
     @app.get("/")
-    async def home(token: HTTPAuthorizationCredentials = AccessToken):
+    async def home(token = AccessToken):
         return {
             "Title": title,
             "Description": summary,
@@ -71,18 +67,15 @@ def default_fastapi_setup(
             "Startup date": DATETIME_INIT
         }
 
-    # ----- SWAGGER
-    if ACCESS_TOKENS:
-        # Create a router for the Swagger endpoint
-        from fastapi.openapi.docs import get_swagger_ui_html
-        from fastapi.openapi.utils import get_openapi
-        @app.get("/docs", dependencies=[AccessToken])
-        async def get_docs():
-            return get_swagger_ui_html(openapi_url="/openapi.json", title=f"{title} docs")
+    @app.get("/health")
+    async def health_check(token = AccessToken):
+        return {"status": "ok"}
 
-        @app.get("/openapi.json", dependencies=[AccessToken])
-        async def get_openapi():
-            return get_openapi(routes=app.routes)
+    # ----- SWAGGER
+    @app.get("/docs", include_in_schema=False)
+    async def custom_swagger_ui(token = AccessToken):
+        # Here you can implement logic to validate or use the token as needed
+        return get_swagger_ui_html(openapi_url=app.openapi_url, title="Swagger UI")
 
     return app
 
@@ -92,8 +85,11 @@ def setup_prometheus_metrics(
         entrypoints_to_track: list
 ) -> Tuple[Dict[str, Counter], Dict[str, Counter], Dict[str, Gauge]]:
     # set up /metrics endpoint for prometheus
-    metrics_app = make_asgi_app()
-    app.mount("/metrics", metrics_app)
+    # metrics_app = make_asgi_app()
+    # app.mount("/metrics", metrics_app)
+    @app.get("/metrics")
+    async def metrics(token = AccessToken):
+        return Response(generate_latest(), media_type="text/plain")
 
     # set up custom metrics
     execution_counter, exception_counter, execution_timing = dict(), dict(), dict()

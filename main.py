@@ -374,7 +374,7 @@ def take_picture(
 def take_photo(
         camera_params: BaslerCameraSettings = Depends(),
         image_params: ImageParams = Depends(),
-        token: HTTPAuthorizationCredentials = AccessToken
+        token = AccessToken
 ):
     camera_params_ = BaslerCameraParams(
         **get_not_none_values(camera_params),
@@ -390,7 +390,7 @@ def take_photo(
 # @EXCEPTION_COUNTER[ENTRYPOINT_CAMERA_INFO].count_exceptions()
 def get_camera_info(
     camera_params: BaslerCameraAtom = Depends(),
-    token: HTTPAuthorizationCredentials = AccessToken
+    token = AccessToken
 ):
     with (EXECUTION_TIMING[ENTRYPOINT_CAMERA_INFO].time() and
           EXCEPTION_COUNTER[ENTRYPOINT_CAMERA_INFO].count_exceptions()):
@@ -415,7 +415,7 @@ def get_camera_info(
 
 
 @app.get(ENTRYPOINT_BASLER_CLOSE)
-def close_cameras(token: HTTPAuthorizationCredentials = AccessToken):
+def close_cameras(token = AccessToken):
     global CAMERA
     if isinstance(CAMERA, BaslerCamera) and CAMERA.is_open:
         logger.debug("Camera was open.")
@@ -433,14 +433,14 @@ def close_cameras(token: HTTPAuthorizationCredentials = AccessToken):
 
 # ----- TEST FUNCTIONS
 @app.get(ENTRYPOINT_TEST_NEGATE)
-def negate(boolean: bool, token: HTTPAuthorizationCredentials = AccessToken):
+def negate(boolean: bool, token = AccessToken):
     # global COUNTER
     EXECUTION_COUNTER[ENTRYPOINT_TEST_NEGATE].inc()
     return not boolean
 
 
 @app.get(ENTRYPOINT_TEST_IMAGE)
-def return_test_image(token: HTTPAuthorizationCredentials = AccessToken):
+def return_test_image(token = AccessToken):
     p2img = get_test_image()
     if isinstance(p2img, Path):
         return FileResponse(
