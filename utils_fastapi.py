@@ -21,15 +21,15 @@ ACCESS_TOKENS = get_env_variable("ACCESS_TOKENS", [])
 ACCESS_TOKENS = [ACCESS_TOKENS] if isinstance(ACCESS_TOKENS, str) else ACCESS_TOKENS
 
 # Create a security scheme for checking access tokens
-security_scheme = HTTPBearer()
+auth_scheme = HTTPBearer()
 
 # Function to check access tokens
-async def check_access_token(token: Optional[str] = None):
-    if (len(ACCESS_TOKENS) > 0) and (token not in ACCESS_TOKENS):
+async def check_access_token(token: Optional[str] = Depends(auth_scheme)):
+    if (len(ACCESS_TOKENS) > 0) and (token.credentials not in ACCESS_TOKENS):
             raise HTTPException(status_code=401, detail="Invalid access token")
 
 
-AccessToken: Optional[str] = Depends(check_access_token)
+AccessToken: Optional[str] = Depends(check_access_token) if len(ACCESS_TOKENS) > 0 else None
 
 
 def default_fastapi_setup(
