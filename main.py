@@ -133,7 +133,7 @@ def get_basler_camera(params: BaslerCameraParams) -> BaslerCamera:
             if not CAMERA:
                 logger.debug("Camera not yet created and connected.")
                 flag_create_camera = True
-            elif any([vl != getattr(CAMERA, ky) for ky, vl in params.model_dump().items()]):
+            elif any([vl != getattr(CAMERA, ky) for ky, vl in params.model_dump().items() if ky not in ["exposure_time", "exposure_time_microseconds"]]):
                 changed_params = {
                     ky: (vl, getattr(CAMERA, ky))
                     for ky, vl in params.model_dump().items() if vl != getattr(CAMERA, ky)
