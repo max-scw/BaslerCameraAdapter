@@ -1,7 +1,9 @@
 from pydantic import BaseModel, Field
 
 from utils import default_from_env , set_env_variable
+
 from typing import Optional, Annotated, Literal, Any, Union, List, Tuple, Dict
+
 
 # define new data types
 PixelType = Literal[
@@ -94,6 +96,7 @@ TransmissionType = Literal["Unicast", "Multicast", "Broadcast"]
 TriggerMode = Literal["FrameStart", "FrameEnd", "FrameActive", "AcquisitionStart", "FrameBurstEnd", "FrameBurstActive", "ExposureStart", "ExposureEnd", "ExposureActive", "LineStart", "Start", "End", "Active"]
 TriggerActivation = Literal["RisingEdge", "FallingEdge", "AnyEdge", "LevelHigh", "LevelLow"]
 
+
 def get_not_none_values(params: BaseModel) -> Dict[str, Any]:
     """returns the parameter of a Data Model but ignores keys that indicate undefined values."""
     return {
@@ -117,6 +120,7 @@ class CameraCommunication(BaseModel):
     ] = default_from_env("DESTINATION_PORT", None)
     subnet_mask: Optional[str] = default_from_env("SUBNET_MASK", None)
 
+
 class CameraSettings(BaslerCameraAtom):
     convert_to_format: Optional[OutputImageFormat] = default_from_env("CONVERT_TO_FORMAT", "null")
     pixel_format: Optional[PixelType] = default_from_env("PIXEL_TYPE", "Mono8")
@@ -124,6 +128,7 @@ class CameraSettings(BaslerCameraAtom):
     timeout_ms: Optional[
         Annotated[int, Field(strict=False, ge=200)]
     ] = default_from_env("TIMEOUT_MS", 5000)  # milli seconds
+
 
 class CameraImageAcquisition(BaseModel):
     exposure_time_microseconds: Optional[
@@ -139,6 +144,7 @@ class BaslerCameraSettings(CameraCommunication, CameraSettings, CameraImageAcqui
 
 class BaslerCameraParams(CameraCommunication, CameraSettings, CameraImageAcquisition):
     pass
+# TODO: validator pixel format
 
 # --- Image parameter
 class ImageParamsFormat(BaseModel):
@@ -147,6 +153,7 @@ class ImageParamsFormat(BaseModel):
     quality: Optional[
         Annotated[int, Field(strict=False, le=100, ge=10)]
     ] = default_from_env("IMAGE_QUALITY", 100)
+
 
 class ImageParamsProcessing(BaseModel):
     # image processing: rotation
@@ -166,13 +173,6 @@ class ImageParamsProcessing(BaseModel):
         Annotated[float, Field(strict=False, ge=0)]
     ] = default_from_env("IMAGE_ROI_BOTTOM", 1)
 
+
 class ImageParams(ImageParamsFormat, ImageParamsProcessing):
     pass
-
-
-# class PhotoParams(ImageParams):
-#     exposure_time_microseconds: Optional[
-#             Annotated[int, Field(strict=False, ge=500)]
-#     ] = default_from_env(["EXPOSURE_TIME", "EXPOSURE_TIME_MICROSECONDS"], 1000)  # micro seconds
-#
-#     emulate_camera: bool = default_from_env("EMULATE_CAMERA", False)
