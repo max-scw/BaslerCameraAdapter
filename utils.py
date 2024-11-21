@@ -37,7 +37,10 @@ def get_env_variable(key: Union[str, List[str]], default_value, check_for_prefix
         # name of the environment variable to look for
         nm = f"{prefix}{ky}"
         if nm in os.environ:
-            return cast(os.environ[nm])
+            value = cast(os.environ[nm])
+            print(f"Found environment variable {nm} found. Using value: {value}")
+            return value
+    print(f"No environment variable {key} found. Using default value: {default_value}")
     return default_value
 
 
@@ -151,6 +154,7 @@ def setup_logging(
 
     # first log message
     logger_.info(f"Logging configured: level={log_level}, file={log_file}")
+    logger_.debug(f"Environment variables: {os.environ}")
 
     return logger_
 

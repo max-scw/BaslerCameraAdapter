@@ -142,7 +142,7 @@ class BaslerCameraSettings(CameraCommunication, CameraSettings, CameraImageAcqui
     pass
 
 
-class BaslerCameraParams(CameraCommunication, CameraSettings, CameraImageAcquisition):
+class BaslerCameraParams(BaslerCameraSettings):
     pass
 # TODO: validator pixel format
 
