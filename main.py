@@ -47,7 +47,6 @@ CAMERA_THREAD: CameraThread = None
 # Setup logging
 logger = setup_logging(__name__)
 
-
 # lifespan
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -84,7 +83,15 @@ license_info = {
 }
 
 # setup of fastAPI server
-app = default_fastapi_setup(title, summary, description, license_info, contact, lifespan=lifespan)
+app = default_fastapi_setup(
+    title,
+    summary,
+    description,
+    license_info,
+    contact,
+    lifespan=lifespan,
+    root_path=default_from_env(["FASTAPI_ROOT_PATH", "ROOT_PATH"], None)
+)
 # set up /metrics endpoint for prometheus
 EXECUTION_COUNTER, EXCEPTION_COUNTER, EXECUTION_TIMING = setup_prometheus_metrics(
     app,

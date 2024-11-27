@@ -39,7 +39,19 @@ def default_fastapi_setup(
         license_info: Union[str, Dict[str, Any]] = None,
         contact: Union[str, Dict[str, Any]] = None,
         lifespan=None,
+        root_path=None
 ):
+    if license_info is None:
+        license_info = {
+            "name": "MIT License",
+            "url": "https://github.com/max-scw/MinimalImageInference/blob/main/LICENSE",
+        }
+
+    if contact is None:
+        contact = {
+            "name": "max-scw",
+            "url": "https://github.com/max-scw/",
+        }
 
     app = FastAPI(
         title=title,
@@ -48,7 +60,8 @@ def default_fastapi_setup(
         contact=contact,
         license_info=license_info,
         lifespan=lifespan,
-        docs_url=None
+        docs_url=None,
+        root_path=root_path if root_path else None
     )
 
     # ----- home
@@ -85,8 +98,6 @@ def setup_prometheus_metrics(
         entrypoints_to_track: list
 ) -> Tuple[Dict[str, Counter], Dict[str, Counter], Dict[str, Gauge]]:
     # set up /metrics endpoint for prometheus
-    # metrics_app = make_asgi_app()
-    # app.mount("/metrics", metrics_app)
     @app.get("/metrics")
     async def metrics(token = AccessToken):
         return Response(generate_latest(), media_type="text/plain")
@@ -97,7 +108,7 @@ def setup_prometheus_metrics(
         name = ep.strip("/").replace("/", "_").replace("-", "")
         execution_counter[ep] = Counter(
             name=name,
-            documentation=f"Counts how often the entry point {ep} is called."
+            documentation=f"Counts how often the entry point {ep} was called."
         )
         exception_counter[ep] = Counter(
             name=name + "_exception",
@@ -108,5 +119,3 @@ def setup_prometheus_metrics(
             documentation=f"Latest execution time of the entry point {ep}."
         )
     return execution_counter, exception_counter, execution_timing
-
-
