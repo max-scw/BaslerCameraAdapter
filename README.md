@@ -14,16 +14,16 @@ The repository is structured as follows:
 ``` 
 BaslerCameraAdapter
 +-- docs <- auxiliary files for documentation (basically screenshots)
-|-- app.py  <- streamlit server for the frontend
 |-- BaslerCamera.py <- python code to interact with a Basler camera
 |-- BaslerCameraAdapter.Dockerfile  <- Dockerfile for camera service (api)
 |-- BaslerCameraThread.py  <- enables for continuous image acqusition by camera threading
 |-- DataModels.py  <- pydantic data models
-|-- docker-compose.yml  <- exemplatory docker-compose call
 |-- Frontend.Dockerfile  <- Dockerfile for frontend
 |-- LICENSE
-|-- main.py  <- fastAPI server to communicate with the Basler camera
 |-- README.md
+|-- app.py  <- streamlit server for the frontend
+|-- docker-compose.yml  <- exemplatory docker-compose call
+|-- main.py  <- fastAPI server to communicate with the Basler camera
 |-- requirements.txt  <- pip requirements for api
 |-- requirements_frontend.txt  <- pip requirements for frontend
 |-- utils.py  <- helper functions that provide the ability to configure the server
