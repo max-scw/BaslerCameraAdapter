@@ -41,7 +41,6 @@ The default values to interact with a camera are configurable at startup by the 
 | DESTINATION_IP_ADDRESS | string          |                                                                      |
 | DESTINATION_PORT       | integer         | in [0, 653535]                                                       |
 | EXPOSURE_TIME          | integer         | > 500; in micro seconds                                              |
-| EMULATE_CAMERA         | bool            |                                                                      |
 | FASTAPI_ROOT_PATH      | string          |                                                                      |
 | FRAMES_PER_SECOND      | integer         | for continuous acquisition only                                      |
 | IMAGE_FORMAT           | string          |                                                                      |
