@@ -12,18 +12,30 @@ services:
     # customization
     environment:
       - TZ=Europe/Berlin
-      # customize
       - LOGGING_LEVEL=DEBUG
-      - FRAMES_PER_SECOND=15
+      # connection for GigE cameras
+      - IP_ADDRESS="1.1.1.1"
+      - TRANSMISSION_TYPE=Multicast  # must be Multicast when the traffic is routed to the container
+      - DESTINATION_PORT=46000  # specify a port for the UDP packages and open it
+      # camera settings
+      - CONVERT_TO_FORMAT=RGB
+      - PIXEL_TYPE=Mono8  # most cameras support grayscale inages. Formats depend on camera type
+      - EXPOSURE_TIME=5000  # default exposure time
+#      - ACCESS_TOKEN=x-uAM&"recn_k6GbvfVNESt*Q#7(3<JL:R!UYPy9w.
 #      - TEST_IMAGE_PATH=/home/app/test/*.png
 #    volumes:
 #      - ./testimages:/home/app/test
+      # image settings
+      - IMAGE_FORMAT=jpeg
+      - IMAGE_QUALITY=100
     devices:
-      - /dev/bus/usb/:/dev/bus/usb/
+      - /dev/bus/usb/:/dev/bus/usb/  # required if you use USB cameras
     ports:
-      - 3956:3956
+      - 3956:3956  # commands are sent from / to this port. The commands are bind to a MAC address
       - 46000:46000/udp  # set Streaming Port to fixed value with pylonViewer
-      - 5005:5050  # external access port | for debugging
+      - 5005:5050  # external access port | for debugging  basler-camera-service:
+
+
 
   frontend-service:
     # container / image
@@ -31,7 +43,7 @@ services:
     build:
       context: ./
       dockerfile: Frontend.Dockerfile
-    image: maxscw/frontend
+    image: maxscw/basler-camera-adapter-frontend
     # restart policy
     restart: unless-stopped
     # customization
@@ -39,6 +51,6 @@ services:
       - TZ=Europe/Berlin
       # customize
       - LOGGING_LEVEL=DEBUG
-      - ADDRESS_BACKEND=http://camera-adapter:5050/basler/single-frame-acquisition/take-photo
+      - ADDRESS_BACKEND=http://camera-adapter:5050/basler/take-photo
     ports:
       - 5006:8501

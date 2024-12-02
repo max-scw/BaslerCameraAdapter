@@ -94,6 +94,12 @@ or use [uvicorn](https://www.uvicorn.org/) directly (always assuming that all pa
 ````shell
 uvicorn main:app --host=0.0.0.0 --port=5051
 ````
+
+For the frontend it is
+````shell
+streamlit run ./app.py
+````
+
 #### Docker
 
 Use a virtualization engine like [docker](https://www.docker.com/) or [podman](https://podman.io/):
@@ -106,6 +112,8 @@ or the corresponding compose plugins on the example file ([docker-compose.yml](d
 ````shell
 docker compose up -d
 ````
+
+The docker-compose file starts the frontend, too.
 See example file for configuration options via environment variables.
 
 ## Acknowledgments / Disclaimer
