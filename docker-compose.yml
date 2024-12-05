@@ -2,12 +2,7 @@ services:
   basler-camera-service:
     # container / image
     container_name: camera-adapter
-    build:
-      context: ./
-      dockerfile: BaslerCameraAdapter.Dockerfile
-    image: maxscw/basler-camera-adapter
-    # restart policy
-    restart: unless-stopped
+    image: maxscw/basler-camera-adapter:v0.6.2
     stop_signal: SIGTERM  # optional: ensures a graceful stop
     # customization
     environment:
