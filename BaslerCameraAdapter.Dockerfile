@@ -18,7 +18,7 @@ RUN printf "deb https://deb.debian.org/debian bullseye main \
             deb https://security.debian.org/debian-security bullseye-security main \
             deb https://deb.debian.org/debian bullseye-updates main" > /etc/apt/sources.list
 # install libraries and command line tools
-RUN apt-get update && apt-get install -y iputils-ping
+#RUN apt-get update && apt-get install -y iputils-ping && apt-get clean
 
 # new default user
 RUN useradd -ms /bin/bash app
@@ -45,7 +45,7 @@ COPY main.py \
 # set to non-root user
 USER root
 RUN chown -R app:app /home/app
-#USER app
+USER app
 
 EXPOSE 5050
 
