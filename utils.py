@@ -77,6 +77,8 @@ def cast(var: str) -> Union[None, int, float, str, bool]:
             var = float(var)
         elif re_float_de.match(var):  # float
             var = float(var.replace(",", "."))
+    elif var.lower() == "none":
+        var = None
     elif re_boolean.match(var):
         var = True if var[0].lower() == "t" else False
     elif re_list_or_tuple_or_dict.match(var):
