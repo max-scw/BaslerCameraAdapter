@@ -56,3 +56,10 @@ ENTRYPOINT ["python", "main.py"]
 
 #HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 #  CMD curl -k -f -H "Authorization: Bearer my_secret_token" https://localhost:8000/health || exit 1
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD if [ -n "${ACCESS_TOKEN_HEALTH_CHECK}" ]; then \
+    curl -s -f -o /dev/null -H "Authorization: Bearer ${ACCESS_TOKEN_HEALTH_CHECK}" http://localhost:5050/health; \
+  else \
+    curl -s -f -o /dev/null http://localhost:5050/health; \
+  fi || exit 1

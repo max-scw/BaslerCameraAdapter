@@ -19,6 +19,8 @@ DATETIME_INIT = datetime.now()
 # List of correct access tokens
 ACCESS_TOKENS = get_env_variable("ACCESS_TOKENS", [])
 ACCESS_TOKENS = [ACCESS_TOKENS] if isinstance(ACCESS_TOKENS, str) else ACCESS_TOKENS
+if ACCESS_TOKENS and (get_env_variable("ACCESS_TOKEN_HEALTH_CHECK", None) is None):
+    set_env_variable("ACCESS_TOKEN_HEALTH_CHECK", ACCESS_TOKENS[0])
 
 # Create a security scheme for checking access tokens
 auth_scheme = HTTPBearer()

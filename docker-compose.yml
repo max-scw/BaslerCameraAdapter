@@ -16,7 +16,7 @@ services:
       - CONVERT_TO_FORMAT=RGB
       - PIXEL_TYPE=Mono8  # most cameras support grayscale inages. Formats depend on camera type
       - EXPOSURE_TIME=5000  # default exposure time
-#      - ACCESS_TOKEN=x-uAM&"recn_k6GbvfVNESt*Q#7(3<JL:R!UYPy9w.
+#      - ACCESS_TOKENS=["a800a67023198c7978ec998c6961797eacd78f1a", "1234"]
 #      - TEST_IMAGE_PATH=/home/app/test/*.png
 #    volumes:
 #      - ./testimages:/home/app/test
