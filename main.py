@@ -1,6 +1,5 @@
 from fastapi import Depends, HTTPException, FastAPI
 from fastapi.responses import FileResponse, Response
-from fastapi.security import HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -22,7 +21,7 @@ from timeit import default_timer
 # custom packages
 from BaslerCamera import BaslerCamera
 from BaslerCameraThread import CameraThread
-from utils import default_from_env, setup_logging, set_env_variable
+from utils import default_from_env, setup_logging, set_env_variable, to_ip_address
 # set_env_variable("LOGGING_LEVEL", "DEBUG")  # FIXME: for debugging only
 from utils_fastapi import setup_prometheus_metrics, default_fastapi_setup, AccessToken
 
@@ -31,8 +30,7 @@ from DataModels import (
     BaslerCameraParams,
     ImageParams,
     BaslerCameraAtom,
-    OutputImageFormat,
-    get_not_none_values, ImageParams
+    get_not_none_values
 )
 from typing import Union
 
@@ -209,13 +207,8 @@ def process_input_variables(
 
     logger.debug(f"Process input variables: camera={camera_params}, image={image_params}")
 
-    # # add functionality to emulate a camera
-    # if camera_params.emulate_camera:
-    #     camera_params.serial_number = None
-    #     camera_params.ip_address = None
-
     if camera_params.ip_address:
-        camera_params.ip_address = camera_params.ip_address.strip("'").strip('"')
+        camera_params.ip_address = to_ip_address(camera_params.ip_address.strip("'").strip('"'))
     if camera_params.subnet_mask:
         camera_params.subnet_mask = camera_params.subnet_mask.strip("'").strip('"')
 
@@ -242,7 +235,7 @@ def get_camera(
     )
     cam = get_basler_camera(cam_params)
 
-    if (camera_params.serial_number is None) and (camera_params.ip_address is None):
+    if (not camera_params.serial_number) and (not camera_params.ip_address):
         p2img = get_test_image()
 
         if p2img is not None:

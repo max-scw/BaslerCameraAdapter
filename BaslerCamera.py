@@ -16,7 +16,7 @@ from DataModels import (
     TriggerMode,
     TriggerActivation
 )
-from utils import set_env_variable, setup_logging
+from utils import set_env_variable, setup_logging, to_ip_address, is_ip_address
 
 
 # Setup logging
@@ -98,6 +98,12 @@ def create_camera(
         subnet_mask: str = None
 ) -> pylon.InstantCamera:
     t0 = default_timer()
+
+    if ip_address and is_ip_address(address=ip_address):
+        pass
+    else:
+        ip_address = None
+
     if ip_address:
         # Connect to the camera using IP address
         logger.info(f"Connecting to the camera using IP address {ip_address} and subnet mask {subnet_mask}")
@@ -228,7 +234,7 @@ class BaslerCamera:
             exposure_time_microseconds: int = None,
     ) -> None:
         self.serial_number = serial_number
-        self.ip_address = ip_address
+        self.ip_address = to_ip_address(ip_address)
         self.subnet_mask = subnet_mask
         self.timeout_ms = timeout_ms if timeout_ms else 1000
         self.convert_to_format = convert_to_format
@@ -238,7 +244,7 @@ class BaslerCamera:
         self._camera = None
         # properties
         self._transmission_type = transmission_type
-        self._destination_ip_address = destination_ip_address
+        self._destination_ip_address = to_ip_address(destination_ip_address)
         self._destination_port = destination_port
         self._acquisition_mode = acquisition_mode
         self._pixel_format = pixel_format

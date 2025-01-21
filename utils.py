@@ -5,6 +5,7 @@ import re
 from ast import literal_eval
 import importlib.util
 from pathlib import Path
+import socket
 
 from typing import Union, List, Dict, Any, Union
 
@@ -159,6 +160,18 @@ def setup_logging(
     logger_.debug(f"Environment variables: {os.environ}")
 
     return logger_
+
+
+def is_ip_address(address: str) -> bool:
+    try:
+        socket.inet_aton(address)
+        return True
+    except:
+        return False
+
+
+def to_ip_address(address: str) -> str | None:
+    return address if is_ip_address(address) else None
 
 
 # Setup logging
